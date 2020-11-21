@@ -4,6 +4,10 @@
 #include <ESP8266mDNS.h>
 #include <ESPAsyncWebServer.h>
 #include <SPIFFSEditor.h>
+#include <EEPROM.h>
+#include "RTClib.h"
+
+RTC_DS3231 rtc;
 
 // SKETCH BEGIN
 AsyncWebServer server(80);
@@ -91,7 +95,63 @@ const char* http_username = "admin";
 const char* http_password = "admin";
 bool shouldReboot = false;
 
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
 FSInfo fs_info;
+int address = 0;
+
+struct Data
+{
+  uint8_t num;
+  char text[3];
+  uint32_t time;  
+};
+
+Data persons[] = {           // Создаем массив объектов пользовательской структуры
+    {
+      20,
+      "er",
+      42
+    }
+  };
+
+void save (Data *persons) {
+  for (int i = 0; i < 3; i++) {
+    EEPROM.put(address, persons[i]);    // Записываем значение переменной в EEPROM
+    EEPROM.commit();
+    address += sizeof(Data); // Корректируем адрес следующей записи на объем записываемых данных
+
+  }
+}
+
+void load () {
+  address = 0;
+  Data person; // В переменную person будем считывать данные из EEPROM
+  for (int i = 0; i < 3; i++) {
+    EEPROM.get(address, person);      // Считываем данные из EEPROM в созданную переменную
+    Serial.println("Чтение пользовательской структуры из EEPROM по адресу: " + String(address));
+    Serial.printf("num: %x, time: %8x",  person.num, person.time);
+    Serial.println();
+    address += sizeof(Data); // Корректируем адрес следующей записи на объем записываемых данных
+  }
+}
+
+void setupTime() {
+  if (rtc.begin()) {
+    if (rtc.lostPower()) {
+      Serial.println("RTC lost power, let's set the time!");
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    }
+  }
+}
+
+DateTime getTime() {
+  return rtc.now();
+  // Serial.print(now.unixtime());
+  // Serial.print("Temperature: ");
+  // Serial.print(rtc.getTemperature());
+  // Serial.println(" C");
+}
 
 void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     if(!index){
@@ -111,8 +171,11 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
     }
 }
 
+
+
 void setup(){  
   Serial.begin(115200);
+  EEPROM.begin(512);
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(hostName);
   WiFi.begin(ssid, password);
@@ -122,7 +185,12 @@ void setup(){
     delay(1000);
     WiFi.begin(ssid, password);
   }
-
+  
+  Serial.println(String(sizeof(Data)));
+  load();
+  setupTime();
+  // getTime();
+  
   //Send OTA events to the browser
   ArduinoOTA.onStart([]() { events.send("Update Start", "ota"); });
   ArduinoOTA.onEnd([]() { events.send("Update End", "ota"); });
@@ -165,7 +233,7 @@ void setup(){
   // server.addHandler(new SPIFFSEditor(http_username,http_password));
   
   server.on("/heap", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", String(fs_info.totalBytes));
+    request->send(200, "text/plain", String(getTime().unixtime()));
   });
 
   server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.htm");
@@ -307,4 +375,6 @@ void loop(){
     delay(100);
     ESP.restart();
   }
+
+
 }
