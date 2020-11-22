@@ -6,6 +6,12 @@
 #include <SPIFFSEditor.h>
 #include <EEPROM.h>
 #include "RTClib.h"
+#include <rdm6300.h>
+
+
+#define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
+#define READ_LED_PIN 16
+Rdm6300 rdm6300;
 
 RTC_DS3231 rtc;
 
@@ -17,21 +23,21 @@ AsyncWebSocketClient * client;
 
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
   if(type == WS_EVT_CONNECT){
-    Serial.printf("ws[%s][%u] connect\n", server->url(), client->id());
+    Serial1.printf("ws[%s][%u] connect\n", server->url(), client->id());
     client->printf("Hello Client %u :)", client->id());
     client->ping();
   } else if(type == WS_EVT_DISCONNECT){
-    Serial.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
+    Serial1.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
   } else if(type == WS_EVT_ERROR){
-    Serial.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
+    Serial1.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
   } else if(type == WS_EVT_PONG){
-    Serial.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len)?(char*)data:"");
+    Serial1.printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len)?(char*)data:"");
   } else if(type == WS_EVT_DATA){
     AwsFrameInfo * info = (AwsFrameInfo*)arg;
     String msg = "";
     if(info->final && info->index == 0 && info->len == len){
       //the whole message is in a single frame and we got all of it's data
-      Serial.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT)?"text":"binary", info->len);
+      Serial1.printf("ws[%s][%u] %s-message[%llu]: ", server->url(), client->id(), (info->opcode == WS_TEXT)?"text":"binary", info->len);
 
       if(info->opcode == WS_TEXT){
         for(size_t i=0; i < info->len; i++) {
@@ -44,7 +50,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
           msg += buff ;
         }
       }
-      Serial.printf("%s\n",msg.c_str());
+      Serial1.printf("%s\n",msg.c_str());
 
       if(info->opcode == WS_TEXT)
         client->text("I got your text message");
@@ -54,11 +60,11 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
       //message is comprised of multiple frames or the frame is split into multiple packets
       if(info->index == 0){
         if(info->num == 0)
-          Serial.printf("ws[%s][%u] %s-message start\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
-        Serial.printf("ws[%s][%u] frame[%u] start[%llu]\n", server->url(), client->id(), info->num, info->len);
+          Serial1.printf("ws[%s][%u] %s-message start\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
+        Serial1.printf("ws[%s][%u] frame[%u] start[%llu]\n", server->url(), client->id(), info->num, info->len);
       }
 
-      Serial.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server->url(), client->id(), info->num, (info->message_opcode == WS_TEXT)?"text":"binary", info->index, info->index + len);
+      Serial1.printf("ws[%s][%u] frame[%u] %s[%llu - %llu]: ", server->url(), client->id(), info->num, (info->message_opcode == WS_TEXT)?"text":"binary", info->index, info->index + len);
 
       if(info->opcode == WS_TEXT){
         for(size_t i=0; i < len; i++) {
@@ -71,12 +77,12 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
           msg += buff ;
         }
       }
-      Serial.printf("%s\n",msg.c_str());
+      Serial1.printf("%s\n",msg.c_str());
 
       if((info->index + len) == info->len){
-        Serial.printf("ws[%s][%u] frame[%u] end[%llu]\n", server->url(), client->id(), info->num, info->len);
+        Serial1.printf("ws[%s][%u] frame[%u] end[%llu]\n", server->url(), client->id(), info->num, info->len);
         if(info->final){
-          Serial.printf("ws[%s][%u] %s-message end\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
+          Serial1.printf("ws[%s][%u] %s-message end\n", server->url(), client->id(), (info->message_opcode == WS_TEXT)?"text":"binary");
           if(info->message_opcode == WS_TEXT)
             client->text("I got your text message");
           else
@@ -129,9 +135,9 @@ void load () {
   Data person; // В переменную person будем считывать данные из EEPROM
   for (int i = 0; i < 3; i++) {
     EEPROM.get(address, person);      // Считываем данные из EEPROM в созданную переменную
-    Serial.println("Чтение пользовательской структуры из EEPROM по адресу: " + String(address));
-    Serial.printf("num: %x, time: %8x",  person.num, person.time);
-    Serial.println();
+    Serial1.println("Чтение пользовательской структуры из EEPROM по адресу: " + String(address));
+    Serial1.printf("num: %x, time: %8x",  person.num, person.time);
+    Serial1.println();
     address += sizeof(Data); // Корректируем адрес следующей записи на объем записываемых данных
   }
 }
@@ -139,7 +145,7 @@ void load () {
 void setupTime() {
   if (rtc.begin()) {
     if (rtc.lostPower()) {
-      Serial.println("RTC lost power, let's set the time!");
+      Serial1.println("RTC lost power, let's set the time!");
       rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
   }
@@ -155,7 +161,7 @@ DateTime getTime() {
 
 void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
     if(!index){
-      Serial.printf("Start upload: %s\n", filename.c_str());
+      Serial1.printf("Start upload: %s\n", filename.c_str());
       // open the file on first call and store the file handle in the request object
       request->_tempFile = SPIFFS.open("/"+filename, "w");
     }
@@ -164,7 +170,7 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
       request->_tempFile.write(data,len);
     }
     if(final){
-      Serial.printf("UploadEnd: size:%x",(index+len));
+      Serial1.printf("UploadEnd: size:%x",(index+len));
       // close the file handle as the upload is now done
       request->_tempFile.close();
       // request->redirect("/files");
@@ -174,23 +180,33 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
 
 
 void setup(){  
-  Serial.begin(115200);
+  // Serial1.begin(115200);
+  Serial1.begin(115200);
   EEPROM.begin(512);
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(hostName);
   WiFi.begin(ssid, password);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.printf("STA: Failed!\n");
+    Serial1.printf("STA: Failed!\n");
     WiFi.disconnect(false);
     delay(1000);
     WiFi.begin(ssid, password);
   }
   
-  Serial.println(String(sizeof(Data)));
+  Serial1.println(String(sizeof(Data)));
   load();
   setupTime();
   // getTime();
   
+  
+
+	// pinMode(READ_LED_PIN, OUTPUT);
+	// digitalWrite(READ_LED_PIN, LOW);
+
+	rdm6300.begin(RDM6300_RX_PIN);
+
+	// Serial1.println("\nPlace RFID tag near the rdm6300...");
+
   //Send OTA events to the browser
   ArduinoOTA.onStart([]() { events.send("Update Start", "ota"); });
   ArduinoOTA.onEnd([]() { events.send("Update End", "ota"); });
@@ -212,13 +228,13 @@ void setup(){
   MDNS.addService("http","tcp",80);
 
   if (!SPIFFS.begin()) {
-		Serial.print(F("[ WARN ] Formatting filesystem..."));
+		Serial1.print(F("[ WARN ] Formatting filesystem..."));
 		if (SPIFFS.format()) {
-      Serial.println(F("Filesystem formatted!"));
+      Serial1.println(F("Filesystem formatted!"));
 		}
 		else {
-			Serial.println(F(" failed!"));
-			Serial.println(F("[ WARN ] Could not format filesystem!"));
+			Serial1.println(F(" failed!"));
+			Serial1.println(F("[ WARN ] Could not format filesystem!"));
 		}
 	}
   SPIFFS.info(fs_info);
@@ -240,46 +256,46 @@ void setup(){
   // server.serveStatic("/", SPIFFS, "/www/").setDefaultFile("default.html");
 
   server.onNotFound([](AsyncWebServerRequest *request){
-    Serial.printf("NOT_FOUND: ");
+    Serial1.printf("NOT_FOUND: ");
     if(request->method() == HTTP_GET)
-      Serial.printf("GET");
+      Serial1.printf("GET");
     else if(request->method() == HTTP_POST)
-      Serial.printf("POST");
+      Serial1.printf("POST");
     else if(request->method() == HTTP_DELETE)
-      Serial.printf("DELETE");
+      Serial1.printf("DELETE");
     else if(request->method() == HTTP_PUT)
-      Serial.printf("PUT");
+      Serial1.printf("PUT");
     else if(request->method() == HTTP_PATCH)
-      Serial.printf("PATCH");
+      Serial1.printf("PATCH");
     else if(request->method() == HTTP_HEAD)
-      Serial.printf("HEAD");
+      Serial1.printf("HEAD");
     else if(request->method() == HTTP_OPTIONS)
-      Serial.printf("OPTIONS");
+      Serial1.printf("OPTIONS");
     else
-      Serial.printf("UNKNOWN");
-    Serial.printf(" http://%s%s\n", request->host().c_str(), request->url().c_str());
+      Serial1.printf("UNKNOWN");
+    Serial1.printf(" http://%s%s\n", request->host().c_str(), request->url().c_str());
 
     if(request->contentLength()){
-      Serial.printf("_CONTENT_TYPE: %s\n", request->contentType().c_str());
-      Serial.printf("_CONTENT_LENGTH: %u\n", request->contentLength());
+      Serial1.printf("_CONTENT_TYPE: %s\n", request->contentType().c_str());
+      Serial1.printf("_CONTENT_LENGTH: %u\n", request->contentLength());
     }
 
     int headers = request->headers();
     int i;
     for(i=0;i<headers;i++){
       AsyncWebHeader* h = request->getHeader(i);
-      Serial.printf("_HEADER[%s]: %s\n", h->name().c_str(), h->value().c_str());
+      Serial1.printf("_HEADER[%s]: %s\n", h->name().c_str(), h->value().c_str());
     }
 
     int params = request->params();
     for(i=0;i<params;i++){
       AsyncWebParameter* p = request->getParam(i);
       if(p->isFile()){
-        Serial.printf("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
+        Serial1.printf("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
       } else if(p->isPost()){
-        Serial.printf("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
+        Serial1.printf("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
       } else {
-        Serial.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
+        Serial1.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
       }
     }
     request->send(404);
@@ -295,18 +311,18 @@ void setup(){
 
   server.onFileUpload([](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final){
     if(!index)
-      Serial.printf("UploadStart: %s\n", filename.c_str());
-    Serial.printf("%s", (const char*)data);
+      Serial1.printf("UploadStart: %s\n", filename.c_str());
+    Serial1.printf("%s", (const char*)data);
     if(final)
-      Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+      Serial1.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
   });
 
   server.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
     if(!index)
-      Serial.printf("BodyStart: %u\n", total);
-    Serial.printf("%s", (const char*)data);
+      Serial1.printf("BodyStart: %u\n", total);
+    Serial1.printf("%s", (const char*)data);
     if(index + len == total)
-      Serial.printf("BodyEnd: %u\n", total);
+      Serial1.printf("BodyEnd: %u\n", total);
   });
     // Simple Firmware Update Form
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -319,22 +335,22 @@ void setup(){
     request->send(response);
     },[](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final){
       if(!index){
-        Serial.printf("Update Start: %s\n", filename.c_str());
+        Serial1.printf("Update Start: %s\n", filename.c_str());
         Update.runAsync(true);
         if(!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)){
-          Update.printError(Serial);
+          Update.printError(Serial1);
         }
       }
       if(!Update.hasError()){
         if(Update.write(data, len) != len){
-          Update.printError(Serial);
+          Update.printError(Serial1);
         }
       }
       if(final){
         if(Update.end(true)){
-          Serial.printf("Update Success: %uB\n", index+len);
+          Serial1.printf("Update Success: %uB\n", index+len);
         } else {
-          Update.printError(Serial);
+          Update.printError(Serial1);
         }
       }
     });
@@ -371,10 +387,13 @@ void loop(){
   ArduinoOTA.handle();
   ws.cleanupClients();
   if(shouldReboot){
-    Serial.println("Rebooting...");
+    Serial1.println("Rebooting...");
     delay(100);
     ESP.restart();
   }
 
+  if (rdm6300.update()) Serial1.println(rdm6300.get_tag_id(), HEX);
 
+    // digitalWrite(READ_LED_PIN, rdm6300.is_tag_near());
+    // delay(10);
 }
