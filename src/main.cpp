@@ -12,7 +12,7 @@
 #define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
 #define READ_LED_PIN 16
 Rdm6300 rdm6300;
-
+WiFiClient WiFIclient;
 RTC_DS3231 rtc;
 
 // SKETCH BEGIN
@@ -108,15 +108,19 @@ int address = 0;
 
 struct Data
 {
+  uint32_t time;
+  uint32_t id;
   uint8_t num;
-  char text[3];
-  uint32_t time;  
+  uint8_t type;
+  uint8_t state;
 };
 
 Data persons[] = {           // Создаем массив объектов пользовательской структуры
     {
       20,
-      "er",
+      232,
+      323,
+      34,
       42
     }
   };
@@ -177,9 +181,51 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
     }
 }
 
+void send() {
+  
+  char host[] = "192.168.1.31";
+  if (WiFIclient.connect(host, 3000)) {
+    Serial1.println("connection");
+    // client.print( "GET /?");
+    // client.print("temp-1=1212");
+    // client.println( " HTTP/1.1");
+    // client.print( "Host:" );
+    // client.println(host);
+    // client.println( "Connection: close" );
+    // client.println();
+    // client.println();
+   
+    // while (client.available()) {
+    // char line = client.read();
+    // }
+
+    String data = "pst=temperature>" + String(random(0,100)) +"||humidity>" + String(random(0,100)) + "||data>text";
+
+      Serial.print("Requesting POST: ");
+      // Send request to the server:
+      WiFIclient.println("POST / HTTP/1.1");
+      WiFIclient.print("Host: ");
+      WiFIclient.println(host);
+      WiFIclient.println("Accept: */*");
+      WiFIclient.println("Content-Type: application/x-www-form-urlencoded");
+      WiFIclient.print("Content-Length: ");
+      WiFIclient.println(data.length());
+      WiFIclient.println();
+      WiFIclient.print(data);
+
+      delay(500); // Can be changed
+     if (WiFIclient.connected()) { 
+       WiFIclient.stop();  // DISCONNECT FROM THE SERVER
+     }
+
+  } else {
+    Serial1.println("not connection");
+  }
 
 
-void setup(){  
+}
+
+void setup() {  
   // Serial1.begin(115200);
   Serial1.begin(115200);
   EEPROM.begin(512);
@@ -392,7 +438,10 @@ void loop(){
     ESP.restart();
   }
 
-  if (rdm6300.update()) Serial1.println(rdm6300.get_tag_id(), HEX);
+  if (rdm6300.update()) {
+    Serial1.println(rdm6300.get_tag_id(), HEX);
+    send();
+  }
 
     // digitalWrite(READ_LED_PIN, rdm6300.is_tag_near());
     // delay(10);
