@@ -11,6 +11,7 @@
 
 #define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
 #define READ_LED_PIN 16
+#define PIN_STATE 15
 Rdm6300 rdm6300;
 WiFiClient WiFIclient;
 RTC_DS3231 rtc;
@@ -20,6 +21,9 @@ AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 AsyncEventSource events("/events");
 AsyncWebSocketClient * client;
+
+uint16_t reset_counter = 0;
+uint32_t last_time = 0;
 
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
   if(type == WS_EVT_CONNECT){
@@ -119,7 +123,7 @@ Data persons[] = {           // Создаем массив объектов п�
     {
       20,
       232,
-      323,
+      3,
       34,
       42
     }
@@ -199,7 +203,7 @@ void send() {
     // char line = client.read();
     // }
 
-    String data = "pst=temperature>" + String(random(0,100)) +"||humidity>" + String(random(0,100)) + "||data>text";
+    String data = "post=" + String(getTime().unixtime());
 
       Serial.print("Requesting POST: ");
       // Send request to the server:
@@ -232,6 +236,8 @@ void setup() {
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(hostName);
   WiFi.begin(ssid, password);
+  pinMode(PIN_STATE,INPUT);
+
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial1.printf("STA: Failed!\n");
     WiFi.disconnect(false);
@@ -438,10 +444,18 @@ void loop(){
     ESP.restart();
   }
 
-  if (rdm6300.update()) {
-    Serial1.println(rdm6300.get_tag_id(), HEX);
-    send();
+  uint32_t now = millis();
+
+  if (now - last_time > 5000) {
+    last_time = now;
+    if (rdm6300.update()) {
+      Serial1.println(rdm6300.get_tag_id(), HEX);
+      Serial1.println(digitalRead(PIN_STATE));
+      send();
+    }
   }
+
+
 
     // digitalWrite(READ_LED_PIN, rdm6300.is_tag_near());
     // delay(10);
