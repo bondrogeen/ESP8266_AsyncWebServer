@@ -10,8 +10,8 @@
 
 
 #define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
-#define READ_LED_PIN 16
-#define PIN_STATE 15
+#define READ_LED_PIN 15
+#define PIN_STATE 12
 Rdm6300 rdm6300;
 WiFiClient WiFIclient;
 RTC_DS3231 rtc;
@@ -22,7 +22,7 @@ AsyncWebSocket ws("/ws");
 AsyncEventSource events("/events");
 AsyncWebSocketClient * client;
 
-uint16_t reset_counter = 0;
+uint8_t reset_counter = 0;
 uint32_t last_time = 0;
 
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
@@ -112,14 +112,15 @@ int address = 0;
 
 struct Data
 {
-  uint32_t time;
-  uint32_t id;
+  uint32_t unixtime;
+  uint32_t card_id;
   uint8_t num;
   uint8_t type;
   uint8_t state;
+  uint8_t any;
 };
 
-Data persons[] = {           // Создаем массив объектов пользовательской структуры
+Data card[] = {           // Создаем массив объектов пользовательской структуры
     {
       20,
       232,
@@ -140,11 +141,11 @@ void save (Data *persons) {
 
 void load () {
   address = 0;
-  Data person; // В переменную person будем считывать данные из EEPROM
+  Data card; // В переменную person будем считывать данные из EEPROM
   for (int i = 0; i < 3; i++) {
-    EEPROM.get(address, person);      // Считываем данные из EEPROM в созданную переменную
+    EEPROM.get(address, card);      // Считываем данные из EEPROM в созданную переменную
     Serial1.println("Чтение пользовательской структуры из EEPROM по адресу: " + String(address));
-    Serial1.printf("num: %x, time: %8x",  person.num, person.time);
+    Serial1.printf("num: %x, time: %8x",  card.num, card.unixtime);
     Serial1.println();
     address += sizeof(Data); // Корректируем адрес следующей записи на объем записываемых данных
   }
@@ -185,7 +186,7 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
     }
 }
 
-void send() {
+void send(Data card) {
   
   char host[] = "192.168.1.31";
   if (WiFIclient.connect(host, 3000)) {
@@ -202,25 +203,23 @@ void send() {
     // while (client.available()) {
     // char line = client.read();
     // }
-
-    String data = "post=" + String(getTime().unixtime());
-
-      Serial.print("Requesting POST: ");
-      // Send request to the server:
-      WiFIclient.println("POST / HTTP/1.1");
-      WiFIclient.print("Host: ");
-      WiFIclient.println(host);
-      WiFIclient.println("Accept: */*");
-      WiFIclient.println("Content-Type: application/x-www-form-urlencoded");
-      WiFIclient.print("Content-Length: ");
-      WiFIclient.println(data.length());
-      WiFIclient.println();
-      WiFIclient.print(data);
-
-      delay(500); // Can be changed
-     if (WiFIclient.connected()) { 
-       WiFIclient.stop();  // DISCONNECT FROM THE SERVER
-     }
+    // String data = "card={card_id:" + String(card.card_id + ",time_device:" + card.unixtime + ",state:" + card.state);
+    String data = "{\"card\":" + String(card.card_id)  + ",\"time_device\":" + String(card.unixtime) + ",\"state\":" + String(card.state) + "}";
+    Serial.print("Requesting POST: ");
+    // Send request to the server:
+    WiFIclient.println("POST /api/v1/card HTTP/1.1");
+    WiFIclient.print("Host: ");
+    WiFIclient.println(host);
+    WiFIclient.println("Accept: */*");
+    WiFIclient.println("Content-Type: application/json");
+    WiFIclient.print("Content-Length: ");
+    WiFIclient.println(data.length());
+    WiFIclient.println();
+    WiFIclient.print(data);
+    delay(500); // Can be changed
+    if (WiFIclient.connected()) { 
+      WiFIclient.stop();  // DISCONNECT FROM THE SERVER
+    }
 
   } else {
     Serial1.println("not connection");
@@ -237,6 +236,7 @@ void setup() {
   WiFi.softAP(hostName);
   WiFi.begin(ssid, password);
   pinMode(PIN_STATE,INPUT);
+  pinMode(READ_LED_PIN,OUTPUT);
 
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial1.printf("STA: Failed!\n");
@@ -447,16 +447,21 @@ void loop(){
   uint32_t now = millis();
 
   if (now - last_time > 5000) {
+    digitalWrite(READ_LED_PIN, LOW);
+    reset_counter=1;
     last_time = now;
-    if (rdm6300.update()) {
-      Serial1.println(rdm6300.get_tag_id(), HEX);
-      Serial1.println(digitalRead(PIN_STATE));
-      send();
-    }
   }
 
+  if (rdm6300.update() && reset_counter) {
+    digitalWrite(READ_LED_PIN, HIGH);   
+    reset_counter=0;
+    // Serial1.println(rdm6300.get_tag_id(), HEX);
+    // Serial1.println(digitalRead(PIN_STATE));
+    Data card;
+    card.card_id = rdm6300.get_tag_id();
+    card.state = digitalRead(PIN_STATE);
+    card.unixtime = getTime().unixtime();
+    send(card);
+  }
 
-
-    // digitalWrite(READ_LED_PIN, rdm6300.is_tag_near());
-    // delay(10);
 }
