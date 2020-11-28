@@ -7,7 +7,14 @@
 #include <EEPROM.h>
 #include "RTClib.h"
 #include <rdm6300.h>
+#include <Wire.h>
+#include "../lib/eepromi2c.h"
+// #include "../lib/EEPROM24C.h"
 
+
+// #define ADDR_Ax 0b000 //A2, A1, A0
+// #define EEPROM_ADDRESS (0b1010 << 3) + ADDR_Ax
+#define EEPROM_ADDRESS 0x57
 
 #define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
 #define READ_LED_PIN 15
@@ -23,6 +30,8 @@ AsyncEventSource events("/events");
 AsyncWebSocketClient * client;
 
 uint8_t reset_counter = 0;
+uint16_t start_adress = 0;
+
 uint32_t last_time = 0;
 
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
@@ -114,50 +123,46 @@ struct Data
 {
   uint32_t unixtime;
   uint32_t card_id;
-  uint8_t num;
-  uint8_t type;
-  uint8_t state;
-  uint8_t any;
+  uint32_t state;
+  uint32_t any;
 };
 
-Data card[] = {           // Создаем массив объектов пользовательской структуры
-    {
-      20,
-      232,
-      3,
-      34,
-      42
-    }
-  };
+// Data card[] = {           // Создаем массив объектов пользовательской структуры
+//     {
+//       20,
+//       232,
+//       3,
+//       34,
+//       42
+//     }
+//   };
 
-void save (Data *persons) {
-  for (int i = 0; i < 3; i++) {
-    EEPROM.put(address, persons[i]);    // Записываем значение переменной в EEPROM
-    EEPROM.commit();
-    address += sizeof(Data); // Корректируем адрес следующей записи на объем записываемых данных
-
-  }
+void writeEEPROM(uint8_t deviceaddress, uint16_t eeaddress, uint8_t data ) {
+  Wire.beginTransmission(deviceaddress);
+  Wire.write((uint8_t)(eeaddress >> 8)); // MSB
+  Wire.write((uint8_t)(eeaddress & 0xFF)); // LSB
+  Wire.write(data);
+  Wire.write(16);
+  Wire.endTransmission();
+ 
+  delay(5);
 }
-
-void load () {
-  address = 0;
-  Data card; // В переменную person будем считывать данные из EEPROM
-  for (int i = 0; i < 3; i++) {
-    EEPROM.get(address, card);      // Считываем данные из EEPROM в созданную переменную
-    Serial1.println("Чтение пользовательской структуры из EEPROM по адресу: " + String(address));
-    Serial1.printf("num: %x, time: %8x",  card.num, card.unixtime);
-    Serial1.println();
-    address += sizeof(Data); // Корректируем адрес следующей записи на объем записываемых данных
+ 
+uint8_t readEEPROM(uint8_t deviceaddress, uint16_t eeaddress ) {
+  uint8_t data = 0;
+  Wire.beginTransmission(deviceaddress);
+  Wire.write((uint8_t)(eeaddress >> 8)); // MSB
+  Wire.write((uint8_t)(eeaddress & 0xFF)); // LSB
+  Wire.endTransmission();
+  delay(5);
+  Wire.requestFrom(deviceaddress, 2); //retrieve 1 returned byte
+  delay(10);
+  if(Wire.available()){
+    data = Wire.read();
+    Serial1.println(data);
+    Serial1.println(Wire.read());
   }
-}
-
-void setupTime() {
-  if (rtc.begin()) {
-    if (rtc.lostPower()) {
-      Serial1.println("RTC lost power, let's set the time!");
-      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    }
-  }
+  return data;
 }
 
 DateTime getTime() {
@@ -204,7 +209,7 @@ void send(Data card) {
     // char line = client.read();
     // }
     // String data = "card={card_id:" + String(card.card_id + ",time_device:" + card.unixtime + ",state:" + card.state);
-    String data = "{\"card\":" + String(card.card_id)  + ",\"time_device\":" + String(card.unixtime) + ",\"state\":" + String(card.state) + "}";
+    String data = "{\"card\":" + String(card.card_id)  + ",\"time_device\":" + String(card.unixtime) + ",\"state\":" + 0 + "}";
     Serial.print("Requesting POST: ");
     // Send request to the server:
     WiFIclient.println("POST /api/v1/card HTTP/1.1");
@@ -246,12 +251,36 @@ void setup() {
   }
   
   Serial1.println(String(sizeof(Data)));
-  load();
-  setupTime();
-  // getTime();
-  
-  
+ 
+  if (rtc.begin()) {
+    if (rtc.lostPower()) {
+      Serial1.println("RTC lost power, let's set the time!");
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    }
+  }
+  getTime();
+  uint16_t address = 0;
+  // writeEEPROM(EEPROM_ADDRESS, address, 254);
+  // Serial1.print(readEEPROM(EEPROM_ADDRESS, address));
+  // uint8_t bi = 0;
+  // for (size_t i = 0; i < 4096; i++) {
+  //   eeWrite(start_adress, bi);
+  //   start_adress++;
+  //   delay(5);
+  // }
+  // start_adress = 0;
 
+  Data test;
+  for (size_t i = 0; i < 256; i++) {
+    eeRead(start_adress, test);
+    // EEPROM_get(start_adress, test);
+    Serial1.println(test.card_id);
+    Serial1.println(test.unixtime);
+    Serial1.println(test.state);
+    Serial1.println(test.any);
+    start_adress = start_adress + sizeof(Data);
+  }
+  start_adress = 0;
 	// pinMode(READ_LED_PIN, OUTPUT);
 	// digitalWrite(READ_LED_PIN, LOW);
 
@@ -446,7 +475,7 @@ void loop(){
 
   uint32_t now = millis();
 
-  if (now - last_time > 5000) {
+  if (now - last_time > 2000) {
     digitalWrite(READ_LED_PIN, LOW);
     reset_counter=1;
     last_time = now;
@@ -458,10 +487,60 @@ void loop(){
     // Serial1.println(rdm6300.get_tag_id(), HEX);
     // Serial1.println(digitalRead(PIN_STATE));
     Data card;
-    card.card_id = rdm6300.get_tag_id();
-    card.state = digitalRead(PIN_STATE);
+    card.card_id = rdm6300.get_tag_id();    
     card.unixtime = getTime().unixtime();
-    send(card);
+    card.state = digitalRead(PIN_STATE);
+    card.any = start_adress;
+
+    // for (size_t i = 0; i < 255; i++) {
+      eeWrite(start_adress,card);
+      // EEPROM_put(start_adress,  card); 
+      // start_adress = start_adress + sizeof(Data);
+    // }
+    
+    // eeWrite(start_adress,card);
+    // send(card);
+    start_adress = start_adress + sizeof(Data);
+    if (start_adress == 4096) start_adress = 0;
+    Serial1.println(card.card_id);
+    Serial1.println(card.unixtime);
+    Serial1.println(card.state);
+    Serial1.println(card.any);
+    Serial1.printf("start_adress: %d", start_adress, DEC);
+    Serial1.println();
   }
+
+  // byte error, address;
+  // int nDevices;
+ 
+  // Serial1.println("Scanning...");
+ 
+  // nDevices = 0;
+  // for(address = 1; address < 127; address++ )
+  // {
+  //   // The i2c_scanner uses the return value of
+  //   // the Write.endTransmisstion to see if
+  //   // a device did acknowledge to the address.
+  //   Wire.beginTransmission(address);
+  //   error = Wire.endTransmission();
+ 
+  //   if (error == 0) {
+  //     Serial1.print("I2C device found at address 0x");
+  //     if (address<16)
+  //       Serial.print("0");
+  //     Serial1.print(address,HEX);
+  //     Serial1.println("  !"); 
+  //     nDevices++;
+  //   }
+  //   else if (error==4) {
+  //     Serial1.print("Unknown error at address 0x");
+  //     if (address<16)
+  //       Serial1.print("0");
+  //     Serial1.println(address,HEX);
+  //   }    
+  // }
+  // if (nDevices == 0) Serial1.println("No I2C devices found\n");
+  // else Serial1.println("done\n"); 
+  // delay(5000);           // wait 5 seconds for next scan
 
 }
