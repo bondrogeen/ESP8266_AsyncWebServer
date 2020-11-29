@@ -16,6 +16,7 @@
 #define PIN_STATE 12
 #define CONFIG_VERSION "ls1"
 #define CONFIG_START 32
+#define INDEX_START_ADRESS 0
 
 Rdm6300 rdm6300;
 WiFiClient WiFIclient;
@@ -33,6 +34,7 @@ FSInfo fs_info;
 uint8_t reset_counter = 0;
 uint16_t start_adress = 0;
 uint32_t last_time = 0;
+bool isWsConnected = false;
 
 // char host[] = "192.168.1.31";
 // uint16_t port = 3000;
@@ -78,11 +80,31 @@ struct StoreStruct {
   "admin"  
 };
 
+void writeIntIntoEEPROM(uint8_t address, uint16_t number) { 
+  uint8_t byte1 = number >> 8;
+  uint8_t byte2 = number & 0xFF;
+  EEPROM.write(address, byte1);
+  EEPROM.write(address + 1, byte2);
+}
+
+int readIntFromEEPROM(int address) {
+  uint16_t value = 0;
+  uint8_t byte1 = EEPROM.read(address);
+  uint8_t byte2 = EEPROM.read(address + 1);
+  value = (byte1 << 8) + byte2;
+  Serial1.print("value: ");
+  Serial1.println(value);
+  if (value % 32 != 0 || value > 4096 || value < 0) value = 0;
+  return value;
+}
+
 void loadConfig() {
   if (EEPROM.read(CONFIG_START + 0) == CONFIG_VERSION[0] &&
       EEPROM.read(CONFIG_START + 1) == CONFIG_VERSION[1] &&
-      EEPROM.read(CONFIG_START + 2) == CONFIG_VERSION[2])
-    for (unsigned int t=0; t<sizeof(storage); t++) *((char*)&storage + t) = EEPROM.read(CONFIG_START + t);
+      EEPROM.read(CONFIG_START + 2) == CONFIG_VERSION[2]) {
+        for (unsigned int t=0; t<sizeof(storage); t++) *((char*)&storage + t) = EEPROM.read(CONFIG_START + t);
+      }
+      
     Serial1.print("Load config: ");
 }
 
@@ -175,8 +197,21 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
     Serial1.printf("ws[%s][%u] connect\n", server->url(), client->id());
     client->printf("Hello Client %u :)", client->id());
     client->ping();
+    
+    uint16_t adr = 0;
+    uint8_t checksum = 0;
+    for (size_t i = 0; i < 20; i++) {
+      uint8_t test[32];
+      eeRead(adr, test);
+      adr = adr + sizeof(Data);
+      // checksum = crc(test.card_id);
+      // if(checksum != test.any[0]) break;
+      client->binary(test, sizeof(test));
+    }
+    isWsConnected = true;
   } else if(type == WS_EVT_DISCONNECT){
     Serial1.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
+    isWsConnected = false;
   } else if(type == WS_EVT_ERROR){
     Serial1.printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
   } else if(type == WS_EVT_PONG){
@@ -318,8 +353,9 @@ void setup() {
   EEPROM.begin(512);
   pinMode(PIN_STATE,INPUT);
   pinMode(READ_LED_PIN,OUTPUT);
-  // start_adress = EEPROM.get(0, start_adress);
-  Serial1.println();
+  start_adress = readIntFromEEPROM(INDEX_START_ADRESS);
+  Serial1.print("start_adress: ");
+  Serial1.println(start_adress);
   // WiFi.onEvent();
 
   WiFi.onEvent (cb, WIFI_EVENT_ANY);
@@ -593,6 +629,11 @@ void loop(){
     eeWrite(start_adress,card);
     start_adress = start_adress + sizeof(Data);
     if (start_adress == 4096) start_adress = 0;
+    writeIntIntoEEPROM(INDEX_START_ADRESS, start_adress);
+    if (isWsConnected) {
+      ws.printfAll("21212");
+      Serial1.print("ws.enabled()=");
+    }
     
     // send(card);
     printCard(card);
