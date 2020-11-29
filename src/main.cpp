@@ -14,40 +14,83 @@
 #define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
 #define READ_LED_PIN 15
 #define PIN_STATE 12
-
+#define CONFIG_VERSION "ls1"
+#define CONFIG_START 32
 
 Rdm6300 rdm6300;
 WiFiClient WiFIclient;
 RTC_DS3231 rtc;
 
+uint32_t espID; 
+
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 AsyncEventSource events("/events");
 AsyncWebSocketClient * client;
+
 FSInfo fs_info;
 
 uint8_t reset_counter = 0;
 uint16_t start_adress = 0;
 uint32_t last_time = 0;
 
-char host[] = "192.168.1.31";
-uint16_t port = 3000;
+// char host[] = "192.168.1.31";
+// uint16_t port = 3000;
 
-const char* ssid = "Net_1";
-const char* password = "Sotex110605";
-const char * hostName = "esp-async";
-const char* http_username = "admin";
-const char* http_password = "admin";
+// const char* ssid = "Net_1";
+// const char* password = "Sotex110605";
+// const char* http_username = "admin";
+// const char* http_password = "admin";
 bool shouldReboot = false;
-char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-struct Data
-{
+struct Data {
   uint32_t unixtime;
   uint32_t card_id;
   uint32_t state;
   uint8_t any[4];
 };
+
+// struct LastAdr {
+//   char version[4];
+//   uint16_t lastAdr;
+//   uint8_t crc;
+// } start_adress = {
+//   CONFIG_VERSION,
+//   0,
+//   15
+// };
+
+struct StoreStruct {
+  char version[4];
+  char host[15];
+  uint16_t port;
+  char ssid[20];
+  char password[20];
+  char http_username[10];
+  char http_password[10];
+} storage = {
+  CONFIG_VERSION,
+  "192.168.1.31",
+  3000,
+  "Net_1",
+  "Sotex110605",
+  "admin",
+  "admin"  
+};
+
+void loadConfig() {
+  if (EEPROM.read(CONFIG_START + 0) == CONFIG_VERSION[0] &&
+      EEPROM.read(CONFIG_START + 1) == CONFIG_VERSION[1] &&
+      EEPROM.read(CONFIG_START + 2) == CONFIG_VERSION[2])
+    for (unsigned int t=0; t<sizeof(storage); t++) *((char*)&storage + t) = EEPROM.read(CONFIG_START + t);
+    Serial1.print("Load config: ");
+}
+
+void saveConfig() {
+  for (unsigned int t=0; t<sizeof(storage); t++)
+    EEPROM.write(CONFIG_START + t, *((char*)&storage + t));
+    Serial1.print("Save config: ");
+}
 
 uint8_t crc(uint32_t value) {
     uint8_t sum = 0;
@@ -75,6 +118,8 @@ void printCard(Data str) {
   Serial1.println(str.state);
   Serial1.print("checksum: ");
   Serial1.println(str.any[0]);
+  Serial1.print("send: ");
+  Serial1.println(str.any[1]);
   Serial1.println();
 }
 
@@ -115,6 +160,15 @@ void findDevice() {
   if (nDevices == 0) Serial1.println("No I2C devices found\n");
   else Serial1.println("done\n"); 
 }
+
+String macToString(const unsigned char* mac) {
+  char buf[20];
+  snprintf(buf, sizeof(buf), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  return String(buf);
+}
+
+
 
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
   if(type == WS_EVT_CONNECT){
@@ -208,8 +262,8 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index, uin
     }
 }
 
-void send(Data card) {
-  if (WiFIclient.connect(host, port)) {
+uint8_t send(Data card) {
+  if (WiFIclient.connect(storage.host, storage.port)) {
     Serial1.println("connection");
    
     // while (client.available()) {
@@ -221,7 +275,7 @@ void send(Data card) {
     // Send request to the server:
     WiFIclient.println("POST /api/v1/card HTTP/1.1");
     WiFIclient.print("Host: ");
-    WiFIclient.println(host);
+    WiFIclient.println(storage.host);
     WiFIclient.println("Accept: */*");
     WiFIclient.println("Content-Type: application/json");
     WiFIclient.print("Content-Length: ");
@@ -236,28 +290,51 @@ void send(Data card) {
     if (WiFIclient.connected()) { 
       WiFIclient.stop();  // DISCONNECT FROM THE SERVER
     }
+    return 1;
   } else {
     Serial1.println("not connection");
+    return 0;
+  }
+}
+
+void cb(WiFiEvent_t event){
+  switch(event) {
+    case WIFI_EVENT_STAMODE_GOT_IP:
+      Serial1.println("WiFi connected");
+      Serial1.println("IP address: ");
+      Serial1.println(WiFi.localIP());
+      break;
+    case WIFI_EVENT_STAMODE_DISCONNECTED:
+      Serial1.println("WiFi lost connection");
+      break;
   }
 }
 
 void setup() {  
   // Serial1.begin(115200);
+  const char * hostName = "ESP";
+  espID = ESP.getChipId();
   Serial1.begin(115200);
   EEPROM.begin(512);
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(hostName);
-  WiFi.begin(ssid, password);
   pinMode(PIN_STATE,INPUT);
   pinMode(READ_LED_PIN,OUTPUT);
+  // start_adress = EEPROM.get(0, start_adress);
   Serial1.println();
+  // WiFi.onEvent();
 
-  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial1.println("STA: Failed!\n");
-    WiFi.disconnect(false);
-    delay(1000);
-    WiFi.begin(ssid, password);
-  }
+  WiFi.onEvent (cb, WIFI_EVENT_ANY);
+  WiFi.setSleepMode(WIFI_NONE_SLEEP);
+
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(hostName, storage.password);
+  WiFi.begin(storage.ssid, storage.password);
+
+  // if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+  //   Serial1.println("STA: Failed!\n");
+  //   WiFi.disconnect(false);
+  //   delay(1000);
+  //   WiFi.begin(ssid, password);
+  // }
    
   if (rtc.begin()) {
     if (rtc.lostPower()) {
@@ -265,6 +342,7 @@ void setup() {
       rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
   }
+  loadConfig();
 
   getTime();
   // eraseEeprom();
@@ -314,7 +392,7 @@ void setup() {
     client->send("hello!",NULL,millis(),1000);
   });
   server.addHandler(&events);
-  // server.addHandler(new SPIFFSEditor(http_username,http_password));
+  server.addHandler(new SPIFFSEditor(storage.http_username,storage.http_password));
   
   server.on("/heap", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/plain", String(getTime().unixtime()));
@@ -449,7 +527,34 @@ void setup() {
     request->send(200, "application/json", json);
     json = String();
   });
-  server.begin();
+
+
+  server.on("/eeprom", HTTP_GET, [](AsyncWebServerRequest *request){
+    String json = "[";
+    Data test;
+    uint16_t adr = 0;
+    uint8_t checksum = 0;
+    for (size_t i = 0; i < 10; i++) {
+      eeRead(adr, test);
+      adr = adr + sizeof(Data);
+      checksum = crc(test.card_id);
+      if(checksum != test.any[0]) break;
+
+      if(i) json += ",";
+      json += "{";
+      json += "\"card_id\":" + test.card_id;
+      json += ",\"unixtime\":" + test.unixtime;
+      json += ",\"state\":" + test.state;
+      json += "}";
+    }
+    json += "]";
+    request->send(200, "application/json", json);
+    json = String();
+  });
+
+
+
+    server.begin();
 }
 
 void loop(){
@@ -483,11 +588,13 @@ void loop(){
     Serial1.print("checksum=");
     Serial1.println(checksum);
     card.any[0] = checksum;
+    uint8_t sendOK = send(card);
+    card.any[1] = sendOK;
     eeWrite(start_adress,card);
     start_adress = start_adress + sizeof(Data);
     if (start_adress == 4096) start_adress = 0;
     
-    send(card);
+    // send(card);
     printCard(card);
   }
 }
