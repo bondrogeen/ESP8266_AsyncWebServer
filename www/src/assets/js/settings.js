@@ -22,6 +22,13 @@ function $(val) {
   return document.getElementById(val);
 }
 
+function reboot() {
+  send("reboot", {}, function (res) {
+
+  });
+  $('modal').classList.add("hide");
+}
+
 function loadSettings() {
   send("settings", {}, function (res) {
     $('loader').classList.add('hide');
@@ -115,7 +122,7 @@ window.onload = function () {
     console.log(id)
     if (id === "search") scan();
     if (id === "btn_exit") logout();
-    if (id === "save_m");
+    if (id === "save_m"); reboot();
     if (id === "btn_save") save();
     if (id === "close" || id === "close_m") $('modal').classList.add("hide");
     if (event.target.tagName === "LI") {

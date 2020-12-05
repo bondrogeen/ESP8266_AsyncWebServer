@@ -16,7 +16,7 @@
 #define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
 #define READ_LED_PIN 15
 #define PIN_STATE 12
-#define CONFIG_VERSION "ls1"
+#define CONFIG_VERSION "lk1"
 #define CONFIG_START 32
 #define INDEX_START_ADRESS 0
 
@@ -28,6 +28,7 @@
 #define DEF_HTTP_MODE 1
 #define DEF_HTTP_LOGIN "admin"
 #define DEF_HTTP_PASS "admin"
+#define DEF_BRIG_NAME "brig1"
 
 Rdm6300 rdm6300;
 WiFiClient WiFIclient;
@@ -42,7 +43,9 @@ AsyncWebSocketClient * client;
 
 FSInfo fs_info;
 
-uint8_t reset_counter = 0;
+
+uint8_t isSend = 1;
+uint8_t reset_counter = 1;
 uint16_t start_adress = 0;
 uint32_t last_time = 0;
 bool isWsConnected = false;
@@ -67,14 +70,15 @@ struct Data {
 
 struct StoreStruct {
   char version[4];
-  char server_url[15];
+  char server_url[21];
   uint16_t server_port;
   uint8_t wifi_mode;
-  char wifi_ssid[20];
-  char wifi_pass[20];
+  char wifi_ssid[21];
+  char wifi_pass[21];
   uint8_t http_mode;
-  char http_lodin[10];
-  char http_pass[10];
+  char http_login[11];
+  char http_pass[11];
+  char brig_name[11];
 } storage = {
   CONFIG_VERSION,
   DEF_SERVER_URL,
@@ -84,14 +88,19 @@ struct StoreStruct {
   DEF_WIFI_PASS,
   DEF_HTTP_MODE,
   DEF_HTTP_LOGIN,
-  DEF_HTTP_PASS  
+  DEF_HTTP_PASS,
+  DEF_BRIG_NAME
+
 };
 
 void writeIntIntoEEPROM(uint8_t address, uint16_t number) { 
+  Serial1.print("number: ");
+  Serial1.println(number);
   uint8_t byte1 = number >> 8;
   uint8_t byte2 = number & 0xFF;
   EEPROM.write(address, byte1);
   EEPROM.write(address + 1, byte2);
+  EEPROM.commit();
 }
 
 int readIntFromEEPROM(int address) {
@@ -101,24 +110,31 @@ int readIntFromEEPROM(int address) {
   value = (byte1 << 8) + byte2;
   Serial1.print("value: ");
   Serial1.println(value);
-  if (value % 32 != 0 || value > 4096 || value < 0) value = 0;
+  if (value % 16 != 0 || value > 4080 || value < 0) value = 0;
   return value;
 }
 
+void saveConfig() {
+  for (unsigned int t=0; t<sizeof(storage); t++) {
+    EEPROM.write(CONFIG_START + t, *((char*)&storage + t));
+  }
+    Serial1.print("Save config");
+    EEPROM.commit();
+}
+
 void loadConfig() {
+  Serial1.println(EEPROM.read(CONFIG_START + 0));
+  Serial1.println(EEPROM.read(CONFIG_START + 1));
+  Serial1.println(EEPROM.read(CONFIG_START + 2));
+
   if (EEPROM.read(CONFIG_START + 0) == CONFIG_VERSION[0] &&
       EEPROM.read(CONFIG_START + 1) == CONFIG_VERSION[1] &&
       EEPROM.read(CONFIG_START + 2) == CONFIG_VERSION[2]) {
         for (unsigned int t=0; t<sizeof(storage); t++) *((char*)&storage + t) = EEPROM.read(CONFIG_START + t);
-      }
-      
-    Serial1.print("Load config: ");
-}
-
-void saveConfig() {
-  for (unsigned int t=0; t<sizeof(storage); t++)
-    EEPROM.write(CONFIG_START + t, *((char*)&storage + t));
-    Serial1.print("Save config: ");
+    Serial1.print("Load config");
+  } else {
+    saveConfig();
+  } 
 }
 
 uint8_t crc(uint32_t value) {
@@ -315,7 +331,12 @@ uint8_t send(Data card) {
     // char line = client.read();
     // }
 
-    String data = "{\"card\":" + String(card.card_id)  + ",\"time_device\":" + String(card.unixtime) + ",\"state\":" + card.state + "}";
+    String data = "{\"person_card\":" + String(card.card_id)  
+      + ",\"person_status\":" + card.state + "}";
+      + ",\"device_time\":" + String(card.unixtime) 
+      + ",\"device_location\":" + String(storage.brig_name) + "}";
+      + ",\"device_id\":" + String(espID) + "}";
+
     Serial.print("Requesting POST: ");
     // Send request to the server:
     WiFIclient.println("POST /api/v1/card HTTP/1.1");
@@ -360,7 +381,7 @@ void setup() {
   const char * hostName = "ESP";
   espID = ESP.getChipId();
   Serial1.begin(115200);
-  EEPROM.begin(512);
+  EEPROM.begin(256);
   pinMode(PIN_STATE,INPUT);
   pinMode(READ_LED_PIN,OUTPUT);
   start_adress = readIntFromEEPROM(INDEX_START_ADRESS);
@@ -388,6 +409,9 @@ void setup() {
       rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     }
   }
+
+  Serial1.println("Start...");
+  delay(2000);
   loadConfig();
 
   getTime();
@@ -503,25 +527,23 @@ void setup() {
     request->send(200, "text/html", "<form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='upload'><input type='submit' value='Upload'></form>");
   });
 
-  server.onFileUpload([](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final){
-    if(!index)
-      Serial1.printf("UploadStart: %s\n", filename.c_str());
-    Serial1.printf("%s", (const char*)data);
-    if(final)
-      Serial1.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+  // server.onFileUpload([](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final){
+  //   if(!index)
+  //     Serial1.printf("UploadStart: %s\n", filename.c_str());
+  //   Serial1.printf("%s", (const char*)data);
+  //   if(final)
+  //     Serial1.printf("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+  // });
+
+  server.on("/reboot", HTTP_ANY, [](AsyncWebServerRequest *request){
+    request->send(200, "application/json", "{\"state\":true}");
+    shouldReboot = true;
   });
 
-  server.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
-    if(!index)
-      Serial1.printf("BodyStart: %u\n", total);
-    Serial1.printf("%s", (const char*)data);
-    if(index + len == total)
-      Serial1.printf("BodyEnd: %u\n", total);
-  });
-    // Simple Firmware Update Form
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/html", "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>");
   });
+
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request){
     shouldReboot = !Update.hasError();
     AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK":"FAIL");
@@ -581,10 +603,13 @@ void setup() {
       json += "{";
       json += "\"server_url\":\"" + String(storage.server_url) + "\"";;
       json += ",\"server_port\":" + String(storage.server_port);
-      json += ",\"http_login\":\"" + String(storage.http_lodin) + "\"";
+      json += ",\"http_mode\":" + String(storage.http_mode);
+      json += ",\"http_login\":\"" + String(storage.http_login) + "\"";
       json += ",\"http_pass\":\"" + String(storage.http_pass) + "\"";
+      json += ",\"wifi_mode\":" + String(storage.wifi_mode);
       json += ",\"wifi_ssid\":\"" + String(storage.wifi_ssid) + "\"";
       json += ",\"wifi_pass\":\"" + String(storage.wifi_pass) + "\"";
+      json += ",\"brig_name\":\"" + String(storage.brig_name) + "\"";
       json += "}";
     request->send(200, "application/json", json);
     json = String();
@@ -595,25 +620,48 @@ void setup() {
     if (json.is<JsonArray>()) {
       data = json.as<JsonArray>();
     } else if (json.is<JsonObject>()) {
-      data = json.as<JsonObject>();
+      JsonObject data = json.as<JsonObject>();
+      for (JsonPair kv : data) {
+        // Serial1.print(kv.key().c_str());
+        // Serial1.print(":");
+        if(kv.value().is<char*>()) {
+          // Serial1.println(kv.value().as<char*>());
+          if (!strcmp(kv.key().c_str(), "http_login")) strncpy(storage.http_login, kv.value().as<char*>(), 10);
+          if (!strcmp(kv.key().c_str(), "http_pass")) strncpy(storage.http_pass, kv.value().as<char*>(), 10);
+          if (!strcmp(kv.key().c_str(), "server_url")) strncpy(storage.server_url, kv.value().as<char*>(), 20);
+          if (!strcmp(kv.key().c_str(), "wifi_ssid")) strncpy(storage.wifi_ssid, kv.value().as<char*>(), 20);
+          if (!strcmp(kv.key().c_str(), "wifi_pass")) strncpy(storage.wifi_pass, kv.value().as<char*>(), 20);
+          if (!strcmp(kv.key().c_str(), "brig_name")) strncpy(storage.brig_name, kv.value().as<char*>(), 10);
+          continue;
+        } else {
+          if (!strcmp(kv.key().c_str(), "wifi_mode")) storage.wifi_mode = kv.value().as<uint8_t>();
+          else if (!strcmp(kv.key().c_str(), "http_mode")) storage.http_mode = kv.value().as<uint8_t>();
+          else if (!strcmp(kv.key().c_str(), "server_port")) storage.server_port = kv.value().as<uint16_t>();
+        }
+      }
+      saveConfig();
+      Serial1.println(storage.http_mode);
+      Serial1.println(storage.http_login);
+      Serial1.println(storage.http_pass);
+      Serial1.println(storage.wifi_mode);
+      Serial1.println(storage.wifi_ssid);
+      Serial1.println(storage.wifi_pass);
+      Serial1.println(storage.server_url);
+      Serial1.println(storage.server_port);
+
+        // if(kv.value().is<uint32_t>()) {
+        //   Serial1.println(kv.value().as<uint32_t>());
+        //   continue;
+        // }
+        // if(kv.value().is<uint16_t>()) {
+        //   Serial1.println(kv.value().as<uint16_t>());
+        //   continue;
+        // }
+        // if(kv.value().is<uint8_t>()) Serial1.println(kv.value().as<uint8_t>());
     }
-
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, "{\"first\":\"hello\",\"second\":\"world\"}");
-    JsonObject root = doc.as<JsonObject>();
-
-    // using C++11 syntax (preferred):
-    for (JsonPair kv : root) {
-        Serial1.println(kv.key().c_str());
-        Serial1.println(kv.value().as<char*>());
-    }
-
-    uint8_t pass = data["http_mode"];
-    Serial1.println(pass);
     String response;
     serializeJson(data, response);
     request->send(200, "application/json", response);
-    Serial1.println(response);
   });
   server.addHandler(handler);
   server.begin();
@@ -630,15 +678,11 @@ void loop(){
 
   uint32_t now = millis();
 
-  if (now - last_time > 2000) {
-    digitalWrite(READ_LED_PIN, LOW);
-    reset_counter=1;
-    last_time = now;
-  }
-
   if (rdm6300.update() && reset_counter) {
+    last_time = now;
+    reset_counter = 0;
     digitalWrite(READ_LED_PIN, HIGH);   
-    reset_counter=0;
+    
     uint_fast32_t card_id = rdm6300.get_tag_id();
 
     Data card;
@@ -659,11 +703,17 @@ void loop(){
     if (isWsConnected) {
       ws.printfAll("21212");
       Serial1.print("ws.enabled()=");
-
     }
-    findStruct(10);
-    
-    // send(card);
+    // findStruct(10);
     printCard(card);
+  }
+
+  if (now - last_time > 5000) {
+    digitalWrite(READ_LED_PIN, LOW);
+    reset_counter=1;
+    last_time = now;
+    Serial1.println();
+    Serial1.println("+5 sec");
+    Serial1.println();
   }
 }
