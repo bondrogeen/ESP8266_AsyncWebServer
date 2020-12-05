@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  //= template/head.html
+  <title>Main</title>
+
+  <style>
+    .card .card-image {
+      background: url(http://git.codedevice.ru/img/new.jpg) center center / cover no-repeat;
+      height: 200px;
+      border-bottom: 1px solid
+    }
+
+    .card .card-reveal p {
+      margin: 0;
+    }
+
+    .b {
+      font-weight: 700;
+    }
+
+    .git,
+    .vers,
+    .btnInfo,
+    .sett {
+      position: absolute;
+    }
+
+    .btnInfo {
+      right: 23px;
+      bottom: 50px;
+      font-size: 3rem;
+      cursor: pointer;
+    }
+
+    .sideopen {
+      cursor: pointer;
+    }
+
+    .git,
+    .vers {
+      right: 20px;
+      bottom: 5px;
+    }
+
+    .sett {
+      bottom: 30px;
+      right: 20px;
+    }
+
+    .card .card-content {
+      min-height: 115px;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  //= template/header.html
+
+  <div id="Modal" class="modal hide">
+    <div class="m-cont">
+      <span class="close" onclick="modclose();">&times;</span>
+      <div class="m-body">
+        <p>Save settings?</p>
+      </div>
+      <div class="m-foo">
+        <button class="success">Yes</button>
+        <button class="danger">No</button>
+      </div>
+    </div>
+  </div>
+  <div class="cont">
+    <div class="row">
+      <div class="s12 m2 l2">
+
+      </div>
+      <div class="s12 m10 l-9 ">
+        <h1>Main</h1>
+        <div id="modules" class="row">
+
+        </div>
+      </div>
+    </div>
+  </div>
+  //= template/footer.html
+  <script>
+    function $(val) {
+      return document.getElementById(val);
+    }
+
+    function send(page, data, callback) {
+      var req = new XMLHttpRequest();
+      req.open("POST", page, true);
+      req.setRequestHeader('Content-Type', 'application/json');
+      req.addEventListener("load", function() {
+        if (callback)(req.status === 200) ? callback(req.responseText) : callback(false)
+      });
+      req.send(JSON.stringify(data));
+    }
+
+    function openCard(id) {
+      var x = document.getElementById(id);
+      var rev = document.getElementById("rev" + id)
+      rev.style.display = "block";
+      rev.style.transform = "translateY(-100%)";
+    }
+
+    function closeCard(id) {
+      var x = document.getElementById(id);
+      var rev = document.getElementById("rev" + id)
+      rev.style.display = "none";
+      rev.style.transform = "translateY(0)";
+    }
+
+    function page(t) {
+      var temp = '<p>'
+      if (typeof(t) === 'object') {
+        t.forEach(function(item, i, arr) {
+          temp += '<a title="/' + item + '" target="_blank" href="' + item + '">link </a>'
+        });
+        temp
+      } else {
+        temp += '<a title="/' + t + '" target="_blank" href="' + t + '">link</a>'
+      }
+      temp += '</p>'
+      return temp;
+    }
+
+    function saveStorage(name, obj) {
+      localStorage.setItem(name, JSON.stringify(obj));
+    }
+
+    function loadStorage(name) {
+      return JSON.parse(localStorage.getItem(name));
+    }
+
+    function render(info) {
+      var div = document.createElement('div');
+      var temp = '';
+      div.className = "s12 m6 l4";
+      div.id = info.name;
+      temp +=
+        '<div class="card hover">' +
+        '<div class="card-image"' + (info.img ? 'style="background: url(' + info.img + ') center center / cover no-repeat;"' : '') + '></div>' +
+        '<div class="card-content"><span title="Module name" class="card-title">' + info.name + '</span>' +
+        '<i class="btnInfo" onclick="openCard(\'' + info.name + '\')">&equiv;</i>' +
+        '<span class="vers b" title="Installed version">' + info.version + '</span>'
+      if (info.name !== "main") {
+        temp += '<span class="sett b"><a href="plugin.html?plugin=' + info.name + '">SETUP</a></span>' + page(info.page)
+      }
+      temp +=
+        '</div>' +
+        '<div id="rev' + info.name + '"class="card-reveal"><span onclick="closeCard(\'' + info.name + '\')" class="close">&times;</span>' +
+        '<p><b>Description : </b>' + info.description + '</p>' +
+        '<p><b>Modules : </b>' + info.modules.join(", ") + '</p>' +
+        '<span class="git b"><a target="_blank" href="' + info.repository.url + '">GitHub</a></span>' +
+        '</div>' +
+        '</div>'
+      div.innerHTML = temp;
+      modules.appendChild(div)
+    }
+
+    function pars(d) {
+      try {
+        return JSON.parse(d);
+      } catch (e) {
+        console.error(e);
+        return false;
+      }
+
+    }
+
+    function loadInfo(arr) {
+      var name = arr.shift()
+      if (name) {
+        console.log(true);
+        send(name, {}, function(res) {
+          console.log(res);
+          if (res) {
+            var info
+            info = pars(res);
+            if (info) {
+              saveStorage(name, info)
+              render(info)
+            }
+            if (arr.length !== 0) {
+              loadInfo(arr)
+            }
+          } else {
+            console.error("Error")
+          }
+        });
+      }
+    }
+
+    window.onload = function() {
+      document.getElementById('loader').classList.add('hide');
+
+      for (var i = 0, len = localStorage.length; i < len; ++i) {
+        console.log(localStorage.key(i));
+      }
+      // send("init_settings.lua", {
+      //   "list": true
+      // }, function(res) {
+      //   console.log(res);
+      //   if (res) {
+      //     var data = pars(res);
+      //     if (data) {
+      //       var list = [];
+      //       for (var key in data) {
+      //         if (key.indexOf(".info") !== -1) {
+      //           if (localStorage.getItem(key)) {
+      //             render(loadStorage(key));
+      //           } else {
+      //             list.push(key);
+      //           }
+      //         }
+      //       }
+      //       loadInfo(list);
+      //     }
+      //   }
+      // });
+
+    }
+
+    function logout() {
+      document.cookie = "id=";
+      location.href = '/login.html';
+    }
+
+  </script>
+</body>
+
+</html>
