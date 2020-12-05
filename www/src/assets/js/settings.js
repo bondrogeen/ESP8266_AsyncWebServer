@@ -23,9 +23,7 @@ function $(val) {
 }
 
 function reboot() {
-  send("reboot", {}, function (res) {
-
-  });
+  send("reboot", {}, (res) => {});
   $('modal').classList.add("hide");
 }
 
@@ -75,25 +73,9 @@ function save() {
       }
     }
   }
-
   console.log(data)
   $('modal').classList.remove("hide");
-  // arr.forEach(function (item, i, arr) {
-  //   if (item === "mode") {
-  //     data[item] = +check_sel(item);
-  //   } else if (item === "auth") {
-  //     data[item] = check_sel(item) == "true";
-  //   } else {
-  //     var x = $(item).value;
-  //     if (x || x !== '') data[item] = x;
-  //   }
-  // });
-  // if (+check_sel("mode") === 0) {
-  //   if (!confirm("Attention !!! Wi-Fi will be disabled, do you really want it?")) return;
-  // }
-  // $('loader').classList.remove('hide')
-  // $('modal').classList.add("hide");
-  send("settings", data, function (res) {
+  send("settings", data, (res) => {
     console.log(res)
   }, "PUT");
 }
@@ -122,7 +104,7 @@ window.onload = function () {
     console.log(id)
     if (id === "search") scan();
     if (id === "btn_exit") logout();
-    if (id === "save_m"); reboot();
+    if (id === "save_m") reboot();
     if (id === "btn_save") save();
     if (id === "close" || id === "close_m") $('modal').classList.add("hide");
     if (event.target.tagName === "LI") {
@@ -131,8 +113,10 @@ window.onload = function () {
         $('wifi_ssid').value = id;
         $('wifi_pass').value = "";
         $('wifi_pass').focus();
-        // $('mode').value = "1";
+        $('mode').value = "3";
       }
+      a.style.display = 'none';
+    } else {
       a.style.display = 'none';
     }
   });

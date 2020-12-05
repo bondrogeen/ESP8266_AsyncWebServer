@@ -28,7 +28,7 @@
 #define DEF_HTTP_MODE 1
 #define DEF_HTTP_LOGIN "admin"
 #define DEF_HTTP_PASS "admin"
-#define DEF_BRIG_NAME "brig1"
+#define DEF_DEVICE_LOCATION "brig1"
 
 Rdm6300 rdm6300;
 WiFiClient WiFIclient;
@@ -78,7 +78,7 @@ struct StoreStruct {
   uint8_t http_mode;
   char http_login[11];
   char http_pass[11];
-  char brig_name[11];
+  char device_location[11];
 } storage = {
   CONFIG_VERSION,
   DEF_SERVER_URL,
@@ -89,7 +89,7 @@ struct StoreStruct {
   DEF_HTTP_MODE,
   DEF_HTTP_LOGIN,
   DEF_HTTP_PASS,
-  DEF_BRIG_NAME
+  DEF_DEVICE_LOCATION
 
 };
 
@@ -331,11 +331,11 @@ uint8_t send(Data card) {
     // char line = client.read();
     // }
 
-    String data = "{\"person_card\":" + String(card.card_id)  
-      + ",\"person_status\":" + card.state + "}";
-      + ",\"device_time\":" + String(card.unixtime) 
-      + ",\"device_location\":" + String(storage.brig_name) + "}";
-      + ",\"device_id\":" + String(espID) + "}";
+    String data = "{\"person_card\":" + String(card.card_id);
+      data += ",\"person_status\":" + String(card.state);
+      data += ",\"device_time\":" + String(card.unixtime);
+      data += ",\"device_location\":\"" + String(storage.device_location) + "\"";
+      data += ",\"device_id\":" + String(espID) + "}";
 
     Serial.print("Requesting POST: ");
     // Send request to the server:
@@ -609,7 +609,8 @@ void setup() {
       json += ",\"wifi_mode\":" + String(storage.wifi_mode);
       json += ",\"wifi_ssid\":\"" + String(storage.wifi_ssid) + "\"";
       json += ",\"wifi_pass\":\"" + String(storage.wifi_pass) + "\"";
-      json += ",\"brig_name\":\"" + String(storage.brig_name) + "\"";
+      json += ",\"device_location\":\"" + String(storage.device_location) + "\"";
+      json += ",\"device_id\":" + String(espID);
       json += "}";
     request->send(200, "application/json", json);
     json = String();
@@ -631,7 +632,7 @@ void setup() {
           if (!strcmp(kv.key().c_str(), "server_url")) strncpy(storage.server_url, kv.value().as<char*>(), 20);
           if (!strcmp(kv.key().c_str(), "wifi_ssid")) strncpy(storage.wifi_ssid, kv.value().as<char*>(), 20);
           if (!strcmp(kv.key().c_str(), "wifi_pass")) strncpy(storage.wifi_pass, kv.value().as<char*>(), 20);
-          if (!strcmp(kv.key().c_str(), "brig_name")) strncpy(storage.brig_name, kv.value().as<char*>(), 10);
+          if (!strcmp(kv.key().c_str(), "device_location")) strncpy(storage.device_location, kv.value().as<char*>(), 10);
           continue;
         } else {
           if (!strcmp(kv.key().c_str(), "wifi_mode")) storage.wifi_mode = kv.value().as<uint8_t>();
