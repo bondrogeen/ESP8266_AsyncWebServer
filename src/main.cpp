@@ -16,7 +16,7 @@
 #define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
 #define READ_LED_PIN 15
 #define PIN_STATE 12
-#define CONFIG_VERSION "lk1"
+#define CONFIG_VERSION "lk9"
 #define CONFIG_START 32
 #define INDEX_START_ADRESS 0
 
@@ -29,6 +29,8 @@
 #define DEF_HTTP_LOGIN "admin"
 #define DEF_HTTP_PASS "admin"
 #define DEF_DEVICE_LOCATION "brig1"
+
+#define DEF_DEVICE_FIRMWARE "0.0.6"
 
 Rdm6300 rdm6300;
 WiFiClient WiFIclient;
@@ -43,17 +45,17 @@ AsyncWebSocketClient * client;
 
 FSInfo fs_info;
 
-
 uint8_t isSend = 1;
 uint8_t reset_counter = 1;
 uint16_t start_adress = 0;
 uint32_t last_time = 0;
+char device_firmware[6] = "0.0.6";
 bool isWsConnected = false;
 bool shouldReboot = false;
 
 struct Data {
-  uint32_t unixtime;
   uint32_t card_id;
+  uint32_t unixtime;
   uint32_t state;
   uint8_t any[4];
 };
@@ -94,8 +96,6 @@ struct StoreStruct {
 };
 
 void writeIntIntoEEPROM(uint8_t address, uint16_t number) { 
-  Serial1.print("number: ");
-  Serial1.println(number);
   uint8_t byte1 = number >> 8;
   uint8_t byte2 = number & 0xFF;
   EEPROM.write(address, byte1);
@@ -108,8 +108,6 @@ int readIntFromEEPROM(int address) {
   uint8_t byte1 = EEPROM.read(address);
   uint8_t byte2 = EEPROM.read(address + 1);
   value = (byte1 << 8) + byte2;
-  Serial1.print("value: ");
-  Serial1.println(value);
   if (value % 16 != 0 || value > 4080 || value < 0) value = 0;
   return value;
 }
@@ -123,10 +121,6 @@ void saveConfig() {
 }
 
 void loadConfig() {
-  Serial1.println(EEPROM.read(CONFIG_START + 0));
-  Serial1.println(EEPROM.read(CONFIG_START + 1));
-  Serial1.println(EEPROM.read(CONFIG_START + 2));
-
   if (EEPROM.read(CONFIG_START + 0) == CONFIG_VERSION[0] &&
       EEPROM.read(CONFIG_START + 1) == CONFIG_VERSION[1] &&
       EEPROM.read(CONFIG_START + 2) == CONFIG_VERSION[2]) {
@@ -416,7 +410,7 @@ void setup() {
 
   getTime();
   // eraseEeprom();
-  findStruct(10);
+  // findStruct(10);
 
 	// pinMode(READ_LED_PIN, OUTPUT);
 	// digitalWrite(READ_LED_PIN, LOW);
@@ -458,6 +452,7 @@ void setup() {
   server.addHandler(&ws);
 
   events.onConnect([](AsyncEventSourceClient *client){
+    
     client->send("hello!",NULL,millis(),1000);
   });
   server.addHandler(&events);
@@ -611,6 +606,7 @@ void setup() {
       json += ",\"wifi_pass\":\"" + String(storage.wifi_pass) + "\"";
       json += ",\"device_location\":\"" + String(storage.device_location) + "\"";
       json += ",\"device_id\":" + String(espID);
+      json += ",\"device_firmware\":\"" + String(device_firmware) + "\"";
       json += "}";
     request->send(200, "application/json", json);
     json = String();
@@ -687,6 +683,7 @@ void loop(){
     uint_fast32_t card_id = rdm6300.get_tag_id();
 
     Data card;
+    card.card_id = 0;
     card.card_id = card_id;
     card.unixtime = getTime().unixtime();
     card.state = digitalRead(PIN_STATE);
@@ -695,6 +692,8 @@ void loop(){
     Serial1.print("checksum=");
     Serial1.println(checksum);
     card.any[0] = checksum;
+    card.any[2] = 0;
+    card.any[3] = 0;
     uint8_t sendOK = send(card);
     card.any[1] = sendOK;
     eeWrite(start_adress,card);
@@ -702,8 +701,21 @@ void loop(){
     if (start_adress == 4096) start_adress = 0;
     writeIntIntoEEPROM(INDEX_START_ADRESS, start_adress);
     if (isWsConnected) {
-      ws.printfAll("21212");
-      Serial1.print("ws.enabled()=");
+      // ws.printfAll("21212");
+      // Serial1.print("ws.enabled()=");
+    
+
+    uint8_t test[16];
+    // events.send(data.c_str(),"myevent",millis());
+    
+    for (unsigned int t=0; t<sizeof(card); t++) {
+      Serial1.println(t);
+      test[t] = *((char*)&card + t);
+    }
+    // test[16] = '\n';
+    ws.binaryAll(test, sizeof(test));
+    // Serial1.println(strlen(test));
+    // Serial1.println(test);
     }
     // findStruct(10);
     printCard(card);
@@ -713,8 +725,5 @@ void loop(){
     digitalWrite(READ_LED_PIN, LOW);
     reset_counter=1;
     last_time = now;
-    Serial1.println();
-    Serial1.println("+5 sec");
-    Serial1.println();
   }
 }

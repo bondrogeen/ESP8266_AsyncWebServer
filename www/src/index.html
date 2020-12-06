@@ -52,183 +52,113 @@
     .card .card-content {
       min-height: 115px;
     }
-
   </style>
 </head>
 
 <body>
 
   //= template/header.html
-
-  <div id="Modal" class="modal hide">
-    <div class="m-cont">
-      <span class="close" onclick="modclose();">&times;</span>
-      <div class="m-body">
-        <p>Save settings?</p>
-      </div>
-      <div class="m-foo">
-        <button class="success">Yes</button>
-        <button class="danger">No</button>
-      </div>
-    </div>
-  </div>
   <div class="cont">
     <div class="row">
       <div class="s12 m2 l2">
 
       </div>
       <div class="s12 m10 l-9 ">
-        <h1>Main</h1>
-        <div id="modules" class="row">
+        <h2>Main</h2>
+        <div class="row">
+          <div class="s12 m10 l-9 ">
+            <table>
+              <thead>
+                <tr>
+                  <th>№</th>
+                  <th>ChipID</th>
+                  <th>FlashID</th>
+                  <th>FS Total (byte)</th>
+                  <th>FS Used (byte)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>b517900</td>
+                  <td>1640ef00</td>
+                  <td>3400046</td>
+                  <td>47188</td>
+                </tr>
+                <tr>
+                  <td>2</td>
+                  <td>a325540</td>
+                  <td>4585ff40</td>
+                  <td>3400046</td>
+                  <td>20456</td>
+                </tr>
+              </tbody>
+            </table>
 
+          </div>
         </div>
       </div>
     </div>
   </div>
   //= template/footer.html
   <script>
-    function $(val) {
-      return document.getElementById(val);
-    }
-
-    function send(page, data, callback) {
-      var req = new XMLHttpRequest();
-      req.open("POST", page, true);
-      req.setRequestHeader('Content-Type', 'application/json');
-      req.addEventListener("load", function() {
-        if (callback)(req.status === 200) ? callback(req.responseText) : callback(false)
-      });
-      req.send(JSON.stringify(data));
-    }
-
-    function openCard(id) {
-      var x = document.getElementById(id);
-      var rev = document.getElementById("rev" + id)
-      rev.style.display = "block";
-      rev.style.transform = "translateY(-100%)";
-    }
-
-    function closeCard(id) {
-      var x = document.getElementById(id);
-      var rev = document.getElementById("rev" + id)
-      rev.style.display = "none";
-      rev.style.transform = "translateY(0)";
-    }
-
-    function page(t) {
-      var temp = '<p>'
-      if (typeof(t) === 'object') {
-        t.forEach(function(item, i, arr) {
-          temp += '<a title="/' + item + '" target="_blank" href="' + item + '">link </a>'
-        });
-        temp
-      } else {
-        temp += '<a title="/' + t + '" target="_blank" href="' + t + '">link</a>'
-      }
-      temp += '</p>'
-      return temp;
-    }
-
-    function saveStorage(name, obj) {
-      localStorage.setItem(name, JSON.stringify(obj));
-    }
-
-    function loadStorage(name) {
-      return JSON.parse(localStorage.getItem(name));
-    }
-
-    function render(info) {
-      var div = document.createElement('div');
-      var temp = '';
-      div.className = "s12 m6 l4";
-      div.id = info.name;
-      temp +=
-        '<div class="card hover">' +
-        '<div class="card-image"' + (info.img ? 'style="background: url(' + info.img + ') center center / cover no-repeat;"' : '') + '></div>' +
-        '<div class="card-content"><span title="Module name" class="card-title">' + info.name + '</span>' +
-        '<i class="btnInfo" onclick="openCard(\'' + info.name + '\')">&equiv;</i>' +
-        '<span class="vers b" title="Installed version">' + info.version + '</span>'
-      if (info.name !== "main") {
-        temp += '<span class="sett b"><a href="plugin.html?plugin=' + info.name + '">SETUP</a></span>' + page(info.page)
-      }
-      temp +=
-        '</div>' +
-        '<div id="rev' + info.name + '"class="card-reveal"><span onclick="closeCard(\'' + info.name + '\')" class="close">&times;</span>' +
-        '<p><b>Description : </b>' + info.description + '</p>' +
-        '<p><b>Modules : </b>' + info.modules.join(", ") + '</p>' +
-        '<span class="git b"><a target="_blank" href="' + info.repository.url + '">GitHub</a></span>' +
-        '</div>' +
-        '</div>'
-      div.innerHTML = temp;
-      modules.appendChild(div)
-    }
-
-    function pars(d) {
-      try {
-        return JSON.parse(d);
-      } catch (e) {
-        console.error(e);
-        return false;
-      }
-
-    }
-
-    function loadInfo(arr) {
-      var name = arr.shift()
-      if (name) {
-        console.log(true);
-        send(name, {}, function(res) {
-          console.log(res);
-          if (res) {
-            var info
-            info = pars(res);
-            if (info) {
-              saveStorage(name, info)
-              render(info)
-            }
-            if (arr.length !== 0) {
-              loadInfo(arr)
-            }
-          } else {
-            console.error("Error")
+    function startEvents() {
+      ws = new WebSocket('ws://'+document.location.host+'/ws',['arduino']);
+      ws.binaryType = "arraybuffer";
+      ws.onopen = function(e){
+        console.log("Connected");
+      };
+      ws.onclose = function(e){
+        console.log("Disconnected");
+      };
+      ws.onerror = function(e){
+        console.log("ws error", e);
+        console.log("Error");
+      };
+      ws.onmessage = function(e){
+        var msg = "";
+        if(e.data instanceof ArrayBuffer){
+          var bytes = new Uint8Array(e.data);
+          let buffer = new ArrayBuffer(16);
+          // let buffer = new ArrayBuffer(e.data);
+          for (var i = 0; i < bytes.length; i++) {
+            buffer[i]=bytes[i] 
+            console.log(i + ":" + bytes[i])
+            // buffer[i] = 
+            // msg += String.fromCharCode(bytes[i]);
           }
-        });
-      }
-    }
-
-    window.onload = function() {
-      document.getElementById('loader').classList.add('hide');
-
-      for (var i = 0, len = localStorage.length; i < len; ++i) {
-        console.log(localStorage.key(i));
-      }
-      // send("init_settings.lua", {
-      //   "list": true
-      // }, function(res) {
-      //   console.log(res);
-      //   if (res) {
-      //     var data = pars(res);
-      //     if (data) {
-      //       var list = [];
-      //       for (var key in data) {
-      //         if (key.indexOf(".info") !== -1) {
-      //           if (localStorage.getItem(key)) {
-      //             render(loadStorage(key));
-      //           } else {
-      //             list.push(key);
-      //           }
-      //         }
-      //       }
-      //       loadInfo(list);
-      //     }
+          let card = new Uint32Array(buffer, 0, 1);
+          let time = new Uint32Array(buffer, 4, 1);
+          let state = new Float32Array(buffer, 8, 1);
+          let checksum = new Uint8Array(buffer, 12, 1);
+          let isSend = new Uint8Array(buffer, 13, 1);
+          let uu = new Uint8Array(buffer, 14, 1);
+          let hh = new Uint8Array(buffer, 15, 1);
+          console.log(card[0])
+          console.log(time)
+          console.log(state)
+          console.log(checksum[0])
+          console.log(isSend)
+          
+        } else {
+          msg = "TXT:"+e.data;
+          // msg = "LEGHTH:"+e.data.length;
+        }
+        console.log(msg);
+        console.log(msg.length);
+      };
+      // ge("input_el").onkeydown = function(e){
+      //   stb();
+      //   if(e.keyCode == 13 && ge("input_el").value != ""){
+      //     ws.send(ge("input_el").value);
+      //     ge("input_el").value = "";
       //   }
-      // });
+      // }
 
     }
 
-    function logout() {
-      document.cookie = "id=";
-      location.href = '/login.html';
+    function load(){
+      startEvents();
     }
 
   </script>

@@ -1,5 +1,6 @@
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+<meta name="viewport"
+  content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
 <meta http-equiv="X-UA-Compatible" content="ie=edge">
 <meta http-equiv="Content-Language" content="en" />
 <meta name="msapplication-TileColor" content="#2d89ef">
@@ -12,4 +13,72 @@
 <meta charset="UTF-8">
 <!--<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">-->
 <link href="style.css" rel="stylesheet">
+<script>
+  var settings;
+  function send(params, data, callback) {
+    var req = new XMLHttpRequest();
+    req.open(params.method || "POST", params.url || params, true);
+    req.setRequestHeader('Content-Type', params.content || 'application/json; charset=utf-8');
+    req.addEventListener("load", function () {
+      if (req.status === 200) {
+        try {
+          if(callback) callback(JSON.parse(req.response));
+        } catch (err) {
+          if(callback )callback(false)
+        }
+      } else {
+        if(callback)callback(false)
+      }
+    });
+    req.send(JSON.stringify(data));
+  }
+
+  function $(val) {
+    return document.getElementById(val);
+  }
+
+  function reboot() {
+    send("reboot", {}, function (res) { });
+    $('modal').classList.add("hide");
+  }
+
+  function loadSettings() {
+    send("settings", {}, function (res) {
+      $('loader').classList.add('hide');
+      if (res) {
+        for (key in res) {
+          var obj = $(key);
+          if (obj) {
+            console.log(obj.tagName)
+            if (obj.tagName == "SPAN") {
+              obj.innerHTML = res[key]
+            } else {
+              obj.value = res[key]
+            }
+          }
+        }
+        settings = res;
+      }
+    });
+  }
+
+  function logout() {
+    document.cookie = "id=";
+    window.location = window.location.href.replace(/:\/\//, '://log:out@');
+    location.href = '/';
+  }
+
+  window.onload = function () {
+    loadSettings();
+    if (typeof load == 'function') load();
+    document.body.addEventListener("click", function (event) {
+      if(typeof click == 'function') click(event);
+      var id = event.target.id;
+      console.log(id)
+      if (id === "search") scan();
+      if (id === "btn_exit") logout();
+      if (id === "m_no" || id === "m_close") $('modal').classList.add("hide");
+    });
+  };
+</script>
 <!--	<link href="nodemcu-css.css" rel="stylesheet">-->

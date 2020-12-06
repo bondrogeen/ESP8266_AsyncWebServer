@@ -39,7 +39,6 @@ a {
  position: fixed;
  overflow: hidden;
  z-index: 3;
- top: 53px
 }
 
 .loader:before {
@@ -527,7 +526,8 @@ a {
  position: fixed;
  top: 0;
  width: 100%;
- z-index: 5
+ z-index: 5;
+ padding: 5px 0px 5px 30px;
 }
 
 .nav {
@@ -545,17 +545,12 @@ a {
 
 .nav li a {
  display: inline-block;
- padding: 14px 16px;
  transition: .3s;
  text-align: center;
  text-decoration: none;
- color: rgba(255, 255, 255, 1)
-}
-
-.nav li a.brand {
- font-weight: bold;
- margin-right: 20px;
- margin-left: 40px
+ color: rgba(255, 255, 255, 1);
+ font-size: x-large;
+ font-weight: 700;
 }
 
 .nav li a:hover,
@@ -600,7 +595,6 @@ a {
  }
  .nav.res li a {
   display: block;
-  text-align: left
  }
 }
 
@@ -695,7 +689,8 @@ input[type="text"],
 input[type="number"],
 input[type="password"] {
  font-size: 1.2em;
- -moz-appearance: textfield -moz-padding-start:13px
+ -moz-appearance: textfield;
+ -moz-padding-start:13px;
 }
 
 input[type="checkbox"] {
@@ -804,13 +799,6 @@ select:last-of-type {
 select:focus,
 select:active {
  outline: 0
-}
-
-input[type="text"],
-input[type="number"],
-input[type="password"],
- {
- display: block
 }
 
 input:focus {
@@ -1197,11 +1185,6 @@ tr:hover {
     border: 1px solid rgba(0, 40, 100, 0.12);
     border-radius: 3px;
 }
-
-    flex: 1 1 auto;
-    margin: 0;
-    padding: 1.5rem 1.5rem;
-    position: relative;
 
 .card .card-title {
  font-size: 20px;

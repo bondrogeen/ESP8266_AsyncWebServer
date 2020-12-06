@@ -3,7 +3,22 @@
     <li><a href="index.html" class="brand">Main</a></li>
     <li><a href="settings.html">Settings</a></li>
     <li><a href="service.html">Service</a></li>
-    <li class="-exit"><a href="#" id="btn_exit" onclick="logout()">Exit</a></li>
+    <li class="-exit"><a href="#" id="btn_exit">Exit</a></li>
     <li class="-icon"><a href="#" onclick="document.getElementById('navbar').classList.toggle('res');">&equiv;</a></li>
   </ul>
 
+  <div id="modal" class="modal hide">
+    <div class="m-cont">
+      <div class="m-head">
+        <span class="close" id="m_close">&times;</span>
+        <span class="m-info">Attention!</span>
+      </div>
+      <div class="m-body">
+        <p id="m_text">Save the settings and reload the module?</p>
+      </div>
+      <div class="m-foo">
+        <button id="m_yes" class="info">Yes</button>&nbsp;
+        <button id="m_no">No</button>
+      </div>
+    </div>
+  </div>
