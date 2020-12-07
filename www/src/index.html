@@ -67,31 +67,17 @@
         <h2>Main</h2>
         <div class="row">
           <div class="s12 m10 l-9 ">
-            <table>
+            <table id="table">
               <thead>
                 <tr>
                   <th>№</th>
-                  <th>ChipID</th>
-                  <th>FlashID</th>
-                  <th>FS Total (byte)</th>
-                  <th>FS Used (byte)</th>
+                  <th>Card ID</th>
+                  <th>Time</th>
+                  <th>Type</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>1</td>
-                  <td>b517900</td>
-                  <td>1640ef00</td>
-                  <td>3400046</td>
-                  <td>47188</td>
-                </tr>
-                <tr>
-                  <td>2</td>
-                  <td>a325540</td>
-                  <td>4585ff40</td>
-                  <td>3400046</td>
-                  <td>20456</td>
-                </tr>
               </tbody>
             </table>
 
@@ -102,62 +88,101 @@
   </div>
   //= template/footer.html
   <script>
+
+    var count = 1;
+    function getInt(bytes) {
+      return bytes.reduce(function (s, e, i) { return s | e << ((3 - i) * 8); }, 0);
+    }
+
+    function codeHex2Txt(instr) {
+      //    var codeHex = instr.substring(4,6) + instr.substring(2,4) + instr.substring(0,2);
+      var codeHex = instr.toUpperCase();
+      var l = codeHex.length;
+      var codeP1 = codeHex.substring(0, l - 4);
+      var codeP2 = codeHex.substring(l - 4);
+      var codeP1I = parseInt(codeP1, 16);
+      var codeP2I = parseInt(codeP2, 16);
+
+      var codeText = ("000" + codeP1I).slice(-3) + ',' + ("00000" + codeP2I).slice(-5);
+      return codeText;
+    }
+
+
+    function codeHex2Dec(instr) {
+      //    codeHex = instr.substring(4,6) + instr.substring(2,4) + instr.substring(0,2);
+      var codeHex = instr.toUpperCase();
+      var codeInt = parseInt(codeHex, 16);
+      var codeDec = ("0000000000" + codeInt).slice(-10);
+      return codeDec;
+    }
+
+    function codeDec2Hex(instr) {
+      var codeInt = parseInt(instr, 10);
+      var codeHex = codeInt.toString(16);
+      var codeHex = ("000000" + codeHex).slice(-6);
+      //    codeHex = codeHex.substring(4,6) + codeHex.substring(2,4) + codeHex.substring(0,2);
+      return codeHex.toUpperCase();
+    }
+    function addTable(card, unixTime, state, checksum, isSend) {
+      var table = document.getElementById("table");
+      var tbody = table.getElementsByTagName("tbody")[0];
+      var row = tbody.insertRow(0);
+      var cell1 = row.insertCell(0);
+      var cell2 = row.insertCell(1);
+      var cell3 = row.insertCell(2);
+      var cell4 = row.insertCell(3);
+      var cell5 = row.insertCell(4);
+      var userTimezoneOffset = new Date().getTimezoneOffset() * 60;
+      unixTime = new Date((unixTime + userTimezoneOffset) * 1000)
+      cell1.innerHTML = count,
+        cell2.innerHTML = codeHex2Txt(codeDec2Hex(card)),
+        cell3.innerHTML = unixTime;
+      cell4.innerHTML = (state) ? "Прибыл" : "Убыл";
+      cell5.innerHTML = (isSend);
+      count++;
+    }
+
+
     function startEvents() {
-      ws = new WebSocket('ws://'+document.location.host+'/ws',['arduino']);
+      ws = new WebSocket('ws://' + document.location.host + '/ws', ['arduino']);
       ws.binaryType = "arraybuffer";
-      ws.onopen = function(e){
+      ws.onopen = function (e) {
         console.log("Connected");
       };
-      ws.onclose = function(e){
+      ws.onclose = function (e) {
         console.log("Disconnected");
       };
-      ws.onerror = function(e){
+      ws.onerror = function (e) {
         console.log("ws error", e);
         console.log("Error");
       };
-      ws.onmessage = function(e){
+      ws.onmessage = function (e) {
         var msg = "";
-        if(e.data instanceof ArrayBuffer){
+        if (e.data instanceof ArrayBuffer) {
           var bytes = new Uint8Array(e.data);
-          let buffer = new ArrayBuffer(16);
-          // let buffer = new ArrayBuffer(e.data);
           for (var i = 0; i < bytes.length; i++) {
-            buffer[i]=bytes[i] 
-            console.log(i + ":" + bytes[i])
-            // buffer[i] = 
-            // msg += String.fromCharCode(bytes[i]);
+            // console.log(i + ":" + bytes[i])
           }
-          let card = new Uint32Array(buffer, 0, 1);
-          let time = new Uint32Array(buffer, 4, 1);
-          let state = new Float32Array(buffer, 8, 1);
-          let checksum = new Uint8Array(buffer, 12, 1);
-          let isSend = new Uint8Array(buffer, 13, 1);
-          let uu = new Uint8Array(buffer, 14, 1);
-          let hh = new Uint8Array(buffer, 15, 1);
-          console.log(card[0])
-          console.log(time)
-          console.log(state)
-          console.log(checksum[0])
-          console.log(isSend)
-          
+          var card = getInt([bytes[3], bytes[2], bytes[1], bytes[0]]);
+          var unixTime = getInt([bytes[7], bytes[6], bytes[5], bytes[4]]);
+          var state = getInt([bytes[11], bytes[10], bytes[9], bytes[8]]);
+          var checksum = bytes[12];
+          var isSend = bytes[13];
+          var any = bytes[14];
+          var many = bytes[15];
+
+          addTable(card, unixTime, state, checksum, isSend);
+          console.log(card, unixTime, state, checksum, isSend, any, many);
         } else {
-          msg = "TXT:"+e.data;
+          msg = "TXT:" + e.data;
           // msg = "LEGHTH:"+e.data.length;
         }
         console.log(msg);
         console.log(msg.length);
       };
-      // ge("input_el").onkeydown = function(e){
-      //   stb();
-      //   if(e.keyCode == 13 && ge("input_el").value != ""){
-      //     ws.send(ge("input_el").value);
-      //     ge("input_el").value = "";
-      //   }
-      // }
-
     }
 
-    function load(){
+    function load() {
       startEvents();
     }
 

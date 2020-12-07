@@ -9,6 +9,7 @@
 #include <rdm6300.h>
 #include <Wire.h>
 #include "../lib/eepromi2c.h"
+#include "../lib/struct.h"
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 
@@ -59,6 +60,8 @@ struct Data {
   uint32_t state;
   uint8_t any[4];
 };
+
+Data cardTemp;
 
 // struct LastAdr {
 //   char version[4];
@@ -210,8 +213,6 @@ String macToString(const unsigned char* mac) {
   return String(buf);
 }
 
-
-
 void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
   if(type == WS_EVT_CONNECT){
     Serial1.printf("ws[%s][%u] connect\n", server->url(), client->id());
@@ -330,6 +331,8 @@ uint8_t send(Data card) {
       data += ",\"device_time\":" + String(card.unixtime);
       data += ",\"device_location\":\"" + String(storage.device_location) + "\"";
       data += ",\"device_id\":" + String(espID) + "}";
+
+
 
     Serial.print("Requesting POST: ");
     // Send request to the server:
@@ -681,44 +684,31 @@ void loop(){
     digitalWrite(READ_LED_PIN, HIGH);   
     
     uint_fast32_t card_id = rdm6300.get_tag_id();
-
-    Data card;
-    card.card_id = 0;
-    card.card_id = card_id;
-    card.unixtime = getTime().unixtime();
-    card.state = digitalRead(PIN_STATE);
+    Data* card = &cardTemp;
+    card->card_id = card_id;
+    card->unixtime = getTime().unixtime();
+    card->state = digitalRead(PIN_STATE);
 
     uint8_t checksum = crc(card_id);
     Serial1.print("checksum=");
     Serial1.println(checksum);
-    card.any[0] = checksum;
-    card.any[2] = 0;
-    card.any[3] = 0;
-    uint8_t sendOK = send(card);
-    card.any[1] = sendOK;
-    eeWrite(start_adress,card);
+    card->any[0] = checksum;
+    card->any[2] = 0;
+    card->any[3] = 0;
+    uint8_t sendOK = send(*card);
+    card->any[1] = sendOK;
+    eeWrite(start_adress,*card);
     start_adress = start_adress + sizeof(Data);
     if (start_adress == 4096) start_adress = 0;
     writeIntIntoEEPROM(INDEX_START_ADRESS, start_adress);
     if (isWsConnected) {
-      // ws.printfAll("21212");
-      // Serial1.print("ws.enabled()=");
-    
-
-    uint8_t test[16];
-    // events.send(data.c_str(),"myevent",millis());
-    
-    for (unsigned int t=0; t<sizeof(card); t++) {
-      Serial1.println(t);
-      test[t] = *((char*)&card + t);
-    }
-    // test[16] = '\n';
-    ws.binaryAll(test, sizeof(test));
-    // Serial1.println(strlen(test));
-    // Serial1.println(test);
+      uint8_t test[16];
+      // for (unsigned int t=0; t<sizeof(card); t++) test[t] = *((char*)&card + t);
+      writeAnything(test, *card);
+      ws.binaryAll(test, sizeof(test));
     }
     // findStruct(10);
-    printCard(card);
+    printCard(*card);
   }
 
   if (now - last_time > 5000) {
