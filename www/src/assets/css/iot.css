@@ -689,6 +689,7 @@ input:checked + label:before {
 
 input[type="text"],
 input[type="number"],
+input[type="datetime-local"],
 input[type="password"] {
  font-size: 1.2em;
  -moz-appearance: textfield;
@@ -808,6 +809,7 @@ input:focus {
 }
 
 input[type="text"] + label,
+input[type="datetime-local"] + label,
 input[type="number"] + label,
 input[type="password"] + label,
 input[type="color"] + label {
@@ -821,7 +823,8 @@ input[type="color"] + label {
  -webkit-transition: .2s ease all
 }
 
-input[type="color"] + label {
+input[type="color"] + label,
+input[type="datetime-local"] + label {
  top: -20px;
  font-size: 14px
 }

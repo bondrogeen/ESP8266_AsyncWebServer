@@ -11,7 +11,6 @@
 </head>
 
 <body>
-
   //= template/header.html
   <div class="cont">
     <div class="row">
@@ -53,6 +52,31 @@
               </div>
             </div>
           </div>
+          <div class="s12 m6 l6">
+            <h3>Network :</h3>
+            <div class="row center">
+              <div class="s12 m10">
+                <div class="group"><input id="net_ip" type="text" class="value" required="" value="192.168.1.10">
+                  <label for="net_ip">IP address</label>
+                </div>
+              </div>
+            </div>
+            <div class="row center">
+              <div class="s12 m10">
+                <div class="group"><input id="net_mask" type="text" class="value" required="" value="255.255.255.0">
+                  <label for="net_mask">Subnet mask</label>
+                </div>
+              </div>
+            </div>
+            <div class="row center">
+              <div class="s12 m10">
+                <div class="group"><input id="net_geteway" type="text" class="value" required="" value="192.168.1.1">
+                  <label for="net_geteway">Gateway</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="s12 m6 l6">
             <h3>Authentication :</h3>
             <div class="row center">
@@ -97,13 +121,22 @@
                 </div>
               </div>
             </div>
+            <div class="row center">
+              <div class="s12 m10">
+                <div class="group"><input id="device_location" type="text" class="value" required="" value="">
+                  <label for="device_location">Location name</label>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="s12 m6 l6">
             <h3>Device :</h3>
             <div class="row center">
               <div class="s12 m10">
-                <div class="group"><input id="device_location" type="text" class="value" required="" value="">
-                  <label for="device_location">Location name</label>
+                <div class="group">
+                  <input id="device_time" type="datetime-local" value="2020-12-31T08:30"
+                    pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}" required>
+                  <label for="device_time">Time and data</label>
                 </div>
               </div>
             </div>
@@ -120,9 +153,6 @@
           <div class="s12 m10">
             <div class="group"><button class="info" id="btn_save">Save</button></div>
           </div>
-        </div><br>
-        <div class="row">
-          <div class="s12 end"></div>
         </div>
       </div>
     </div>
@@ -201,7 +231,7 @@
         $('list').style.display = 'none';
       }
     }
-    
+
   </script>
 </body>
 

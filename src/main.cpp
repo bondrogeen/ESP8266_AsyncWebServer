@@ -52,6 +52,7 @@ uint16_t start_adress = 0;
 uint32_t last_time = 0;
 char device_firmware[6] = "0.0.6";
 bool isWsConnected = false;
+bool isLoad = false;
 bool shouldReboot = false;
 
 struct Data {
@@ -149,6 +150,7 @@ void eraseEeprom() {
     eeWrite(i, bi);
     delay(10);
   }
+  writeIntIntoEEPROM(INDEX_START_ADRESS, 0);
 }
 
 void printCard(Data str) {
@@ -163,6 +165,26 @@ void printCard(Data str) {
   Serial1.print("send: ");
   Serial1.println(str.any[1]);
   Serial1.println();
+}
+
+void load(uint8_t byte) {
+  Data* card = &cardTemp;
+  uint16_t adr = 0;
+  uint8_t checksum = 0;
+  for (size_t i = 0; i < byte; i++) {
+    eeRead(adr, *card);
+    adr = adr + sizeof(Data);
+    checksum = crc(card->card_id);
+    if(checksum != card->any[0]) break;
+    if (isWsConnected) {
+      uint8_t test[16];
+      writeAnything(test, *card);
+      ws.binaryAll(test, sizeof(test));
+    }
+    printCard(*card);
+  }
+  Serial1.println("Load start");
+  isLoad = false;
 }
 
 void findStruct(uint8_t byte) {
@@ -218,18 +240,8 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
     Serial1.printf("ws[%s][%u] connect\n", server->url(), client->id());
     client->printf("Hello Client %u :)", client->id());
     client->ping();
-    
-    // uint16_t adr = 0;
-    // uint8_t checksum = 0;
-    // for (size_t i = 0; i < 20; i++) {
-    //   uint8_t test[32];
-    //   eeRead(adr, test);
-    //   adr = adr + sizeof(Data);
-    //   // checksum = crc(test.card_id);
-    //   // if(checksum != test.any[0]) break;
-    //   client->binary(test, sizeof(test));
-    // }
     isWsConnected = true;
+    isLoad = true;    
   } else if(type == WS_EVT_DISCONNECT){
     Serial1.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
     isWsConnected = false;
@@ -413,7 +425,7 @@ void setup() {
 
   getTime();
   // eraseEeprom();
-  // findStruct(10);
+  findStruct(10);
 
 	// pinMode(READ_LED_PIN, OUTPUT);
 	// digitalWrite(READ_LED_PIN, LOW);
@@ -534,6 +546,12 @@ void setup() {
   // });
 
   server.on("/reboot", HTTP_ANY, [](AsyncWebServerRequest *request){
+    request->send(200, "application/json", "{\"state\":true}");
+    shouldReboot = true;
+  });
+
+  server.on("/erase", HTTP_ANY, [](AsyncWebServerRequest *request){
+    eraseEeprom();
     request->send(200, "application/json", "{\"state\":true}");
     shouldReboot = true;
   });
@@ -710,6 +728,7 @@ void loop(){
     // findStruct(10);
     printCard(*card);
   }
+  if(isLoad) load(10);
 
   if (now - last_time > 5000) {
     digitalWrite(READ_LED_PIN, LOW);
