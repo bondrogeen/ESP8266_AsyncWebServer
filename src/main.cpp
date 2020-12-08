@@ -13,7 +13,10 @@
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 
-#define EEPROM_ADDRESS 0x57
+#define DEF_EEPROM_ADDRESS 0x57
+#define DEF_EEPROM_WRITE_TIME 30
+#define DEF_EEPROM_SIZE 4096
+
 #define RDM6300_RX_PIN 13 // can be only 13 - on esp8266 force hardware uart!
 #define READ_LED_PIN 15
 #define PIN_STATE 12
@@ -53,26 +56,20 @@ uint32_t last_time = 0;
 char device_firmware[6] = "0.0.6";
 bool isWsConnected = false;
 bool isLoad = false;
+bool isErase = false;
 bool shouldReboot = false;
 
 struct Data {
-  uint32_t card_id;
-  uint32_t unixtime;
-  uint32_t state;
-  uint8_t any[4];
+  uint32_t card;
+  uint32_t time;
+  uint32_t fund;
+  uint8_t type;
+  uint8_t send;
+  uint8_t next;
+  uint8_t check;
 };
 
 Data cardTemp;
-
-// struct LastAdr {
-//   char version[4];
-//   uint16_t lastAdr;
-//   uint8_t crc;
-// } start_adress = {
-//   CONFIG_VERSION,
-//   0,
-//   15
-// };
 
 struct StoreStruct {
   char version[4];
@@ -96,7 +93,6 @@ struct StoreStruct {
   DEF_HTTP_LOGIN,
   DEF_HTTP_PASS,
   DEF_DEVICE_LOCATION
-
 };
 
 void writeIntIntoEEPROM(uint8_t address, uint16_t number) { 
@@ -145,70 +141,65 @@ uint8_t crc(uint32_t value) {
 }
 
 void eraseEeprom() {
-  uint8_t bi = 255;
-  for (size_t i = 0; i < 4096; i++) {
-    eeWrite(i, bi);
-    delay(10);
+  const uint8_t j = 8;
+  uint8_t empty[j] = {0,0,0,0,0,0,0,0};
+  uint16 adress = 0;
+  for (size_t i = 0; i < (DEF_EEPROM_SIZE / j); i++) {
+    eeWrite(adress, empty);
+    adress += j;
+    delay(DEF_EEPROM_WRITE_TIME);
   }
   writeIntIntoEEPROM(INDEX_START_ADRESS, 0);
+  isErase = false;
 }
 
 void printCard(Data str) {
-  Serial1.print("card_id: ");
-  Serial1.println(str.card_id);
-  Serial1.print("unixtime: ");
-  Serial1.println(str.unixtime);
-  Serial1.print("state: ");
-  Serial1.println(str.state);
-  Serial1.print("checksum: ");
-  Serial1.println(str.any[0]);
+  Serial1.print("card: ");
+  Serial1.println(str.card);
+  Serial1.print("time: ");
+  Serial1.println(str.time);
+  Serial1.print("type: ");
+  Serial1.println(str.type);
+  Serial1.print("check: ");
+  Serial1.println(str.check);
   Serial1.print("send: ");
-  Serial1.println(str.any[1]);
+  Serial1.println(str.send);
   Serial1.println();
 }
 
-void load(uint8_t byte) {
-  Data* card = &cardTemp;
-  uint16_t adr = 0;
-  uint8_t checksum = 0;
-  for (size_t i = 0; i < byte; i++) {
-    eeRead(adr, *card);
-    adr = adr + sizeof(Data);
-    checksum = crc(card->card_id);
-    if(checksum != card->any[0]) break;
-    if (isWsConnected) {
-      uint8_t test[16];
-      writeAnything(test, *card);
-      ws.binaryAll(test, sizeof(test));
-    }
-    printCard(*card);
+void load() {
+  uint8_t j = 32;
+  uint8_t buffer[32];
+  uint16 adress = 0;
+  for (size_t i = 0; i < (DEF_EEPROM_SIZE / j); i++) {
+    eeRead(adress, buffer);
+    adress += j;
+    ws.binaryAll(buffer, sizeof(buffer));
+    delay(50);
   }
-  Serial1.println("Load start");
   isLoad = false;
 }
 
-void findStruct(uint8_t byte) {
-  Data test;
-  uint16_t adr = 0;
-  uint8_t checksum = 0;
-  for (size_t i = 0; i < byte; i++) {
-    eeRead(adr, test);
-    adr = adr + sizeof(Data);
-    checksum = crc(test.card_id);
-    if(checksum != test.any[0]) break;
-    // if (isWsConnected) {
-    //   ws.printfAll(test.card_id, HEX);
-    // }
-    printCard(test);
-  }
-  Serial1.println("Search is over");
-}
+// void findStruct(uint16_t byte) {
+//   Data test;
+//   uint16_t adr = 0;
+//   uint8_t checksum = 0;
+//   for (size_t i = 0; i < byte; i++) {
+//     eeRead(adr, test);
+//     adr = adr + sizeof(Data);
+//     checksum = crc(test.card);
+//     // if(checksum != test.any[0]) break;
+//     // if (isWsConnected) {
+//     //   ws.printfAll(test.card_id, HEX);
+//     // }
+//     printCard(test);
+//   }
+//   Serial1.println("Search is over");
+// }
 
 void findDevice() {
-  byte error, address;
-  int nDevices; 
-  Serial1.println("Scanning...");
-  nDevices = 0;
+  uint8_t device, error, address;
+  device = 0;
   for(address = 1; address < 127; address++ ) {
     Wire.beginTransmission(address);
     error = Wire.endTransmission();
@@ -217,14 +208,14 @@ void findDevice() {
       if (address<16) Serial.print("0");
       Serial1.print(address,HEX);
       Serial1.println("  !"); 
-      nDevices++;
+      device++;
     } else if (error==4) {
       Serial1.print("Unknown error at address 0x");
       if (address<16) Serial1.print("0");
       Serial1.println(address,HEX);
     }    
   }
-  if (nDevices == 0) Serial1.println("No I2C devices found\n");
+  if (device == 0) Serial1.println("No I2C devices found\n");
   else Serial1.println("done\n"); 
 }
 
@@ -338,9 +329,9 @@ uint8_t send(Data card) {
     // char line = client.read();
     // }
 
-    String data = "{\"person_card\":" + String(card.card_id);
-      data += ",\"person_status\":" + String(card.state);
-      data += ",\"device_time\":" + String(card.unixtime);
+    String data = "{\"person_card\":" + String(card.card);
+      data += ",\"person_status\":" + String(card.type);
+      data += ",\"device_time\":" + String(card.time);
       data += ",\"device_location\":\"" + String(storage.device_location) + "\"";
       data += ",\"device_id\":" + String(espID) + "}";
 
@@ -424,8 +415,9 @@ void setup() {
   loadConfig();
 
   getTime();
-  // eraseEeprom();
-  findStruct(10);
+  
+
+  // findStruct(256);
 
 	// pinMode(READ_LED_PIN, OUTPUT);
 	// digitalWrite(READ_LED_PIN, LOW);
@@ -533,6 +525,11 @@ void setup() {
     request->send(200);
   }, onUpload);
 
+  server.on("/test", HTTP_GET, [](AsyncWebServerRequest *request){
+    uint8_t buf[8] = {255,255,50,255,255,255,65,0};
+    request->send_P(200, "text/plain", buf, sizeof(buf));
+  });
+
   server.on("/upload", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(200, "text/html", "<form method='POST' action='/upload' enctype='multipart/form-data'><input type='file' name='upload'><input type='submit' value='Upload'></form>");
   });
@@ -551,7 +548,7 @@ void setup() {
   });
 
   server.on("/erase", HTTP_ANY, [](AsyncWebServerRequest *request){
-    eraseEeprom();
+    isErase = true;
     request->send(200, "application/json", "{\"state\":true}");
     shouldReboot = true;
   });
@@ -703,18 +700,18 @@ void loop(){
     
     uint_fast32_t card_id = rdm6300.get_tag_id();
     Data* card = &cardTemp;
-    card->card_id = card_id;
-    card->unixtime = getTime().unixtime();
-    card->state = digitalRead(PIN_STATE);
+    card->card = card_id;
+    card->time = getTime().unixtime();
+    card->type = digitalRead(PIN_STATE);
 
     uint8_t checksum = crc(card_id);
     Serial1.print("checksum=");
     Serial1.println(checksum);
-    card->any[0] = checksum;
-    card->any[2] = 0;
-    card->any[3] = 0;
+    card->check = checksum;
+    card->fund = 0;
+    card->next = 0;
     uint8_t sendOK = send(*card);
-    card->any[1] = sendOK;
+    card->send = sendOK;
     eeWrite(start_adress,*card);
     start_adress = start_adress + sizeof(Data);
     if (start_adress == 4096) start_adress = 0;
@@ -728,7 +725,8 @@ void loop(){
     // findStruct(10);
     printCard(*card);
   }
-  if(isLoad) load(10);
+  if(isLoad) load();
+  if(isErase) eraseEeprom();
 
   if (now - last_time > 5000) {
     digitalWrite(READ_LED_PIN, LOW);

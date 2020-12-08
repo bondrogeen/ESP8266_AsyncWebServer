@@ -12,6 +12,7 @@ var gulp = require('gulp'),
 
 var path = {
  build: '../data/',
+ css: '../data/css',
  src: {
   html: 'src/*.html',
   js: 'src/assets/js/**/*.js',
@@ -51,15 +52,15 @@ function js() {
  return gulp.src(path.src.js)
   .pipe(rigger())
   .pipe(uglify())
-  // .pipe(gzip())
+  .pipe(gzip())
   .pipe(gulp.dest(path.build));
 };
 
 function style() {
  return gulp.src(path.src.style)
   .pipe(cssmin())
-  .pipe(rename({basename: "style"}))
-  // .pipe(gzip())
+  // .pipe(rename({basename: "style"}))
+  .pipe(gzip())
   .pipe(gulp.dest(path.build));
 };
 

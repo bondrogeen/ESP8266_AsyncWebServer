@@ -540,7 +540,11 @@ a {
 
 .nav li {
  float: left;
- margin-bottom: 0
+ margin-bottom: 0;
+}
+
+.nav li a:hover, .active {
+  text-decoration: underline!important;
 }
 
 .nav li a {
@@ -553,10 +557,6 @@ a {
  font-weight: 700;
  margin-left: 1em;
  margin-right: 0.5em;
-}
-
-.nav li a:hover, .active {
- background: rgba(255, 255, 255, .2);
 }
 
 .nav li.-icon {

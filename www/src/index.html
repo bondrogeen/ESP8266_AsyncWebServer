@@ -6,52 +6,7 @@
   <title>Main</title>
 
   <style>
-    .card .card-image {
-      background: url(http://git.codedevice.ru/img/new.jpg) center center / cover no-repeat;
-      height: 200px;
-      border-bottom: 1px solid
-    }
-
-    .card .card-reveal p {
-      margin: 0;
-    }
-
-    .b {
-      font-weight: 700;
-    }
-
-    .git,
-    .vers,
-    .btnInfo,
-    .sett {
-      position: absolute;
-    }
-
-    .btnInfo {
-      right: 23px;
-      bottom: 50px;
-      font-size: 3rem;
-      cursor: pointer;
-    }
-
-    .sideopen {
-      cursor: pointer;
-    }
-
-    .git,
-    .vers {
-      right: 20px;
-      bottom: 5px;
-    }
-
-    .sett {
-      bottom: 30px;
-      right: 20px;
-    }
-
-    .card .card-content {
-      min-height: 115px;
-    }
+   
   </style>
 </head>
 
@@ -88,6 +43,8 @@
   </div>
   //= template/footer.html
   <script>
+
+    var ws;
 
     var count = 1;
     function getInt(bytes) {
@@ -148,6 +105,7 @@
     function startEvents() {
       ws = new WebSocket('ws://' + document.location.host + '/ws', ['arduino']);
       ws.binaryType = "arraybuffer";
+      
       ws.onopen = function (e) {
         console.log("Connected");
       };
@@ -162,30 +120,44 @@
         var msg = "";
         if (e.data instanceof ArrayBuffer) {
           var bytes = new Uint8Array(e.data);
-          for (var i = 0; i < bytes.length; i++) {
-            // console.log(i + ":" + bytes[i])
-          }
-          var card = getInt([bytes[3], bytes[2], bytes[1], bytes[0]]);
-          var unixTime = getInt([bytes[7], bytes[6], bytes[5], bytes[4]]);
-          var state = getInt([bytes[11], bytes[10], bytes[9], bytes[8]]);
-          var checksum = bytes[12];
-          var isSend = bytes[13];
-          var any = bytes[14];
-          var many = bytes[15];
 
-          addTable(card, unixTime, state, checksum, isSend);
-          console.log(card, unixTime, state, checksum, isSend, any, many);
+          var j = 0;
+          for (var i = 0; i < bytes.length / 16; i++) {
+            var card = getInt([bytes[j+3], bytes[j+2], bytes[j+1], bytes[j+0]]);
+            var time = getInt([bytes[j+7], bytes[j+6], bytes[j+5], bytes[j+4]]);
+            var fund = getInt([bytes[j+11], bytes[j+10], bytes[j+9], bytes[j+8]]);
+            var type = bytes[j+12];
+            var send = bytes[j+13];
+            var next = bytes[j+14];
+            var check = bytes[j+15];
+
+            addTable(card, time, type, check, send);
+            console.log(card, time, fund, type, send, next, check);
+            j += 16;
+          }
+
         } else {
           msg = "TXT:" + e.data;
           // msg = "LEGHTH:"+e.data.length;
+          console.log(msg)
         }
-        console.log(msg);
-        console.log(msg.length);
       };
     }
 
     function load() {
+      $("index").classList.add("active");
       startEvents();
+    }
+
+    function click(event){
+      var id = event.target.id;
+      if (id === "reload") {
+
+      } else if (id === "erase") {
+
+      }
+      
+
     }
 
   </script>

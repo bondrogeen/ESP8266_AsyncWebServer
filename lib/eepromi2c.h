@@ -29,3 +29,18 @@ if(Wire.available())
 *p++ = Wire.read();
 return i;
 }
+
+template <class T> int eeRead(uint16_t ee, T& value, uint16_t size)
+{
+byte* p = (byte*)(void*)&value;
+int i;
+Wire.beginTransmission(DEVICE);
+Wire.write((int)(ee >> 8)); // MSB
+Wire.write((int)(ee & 0xFF)); // LSB
+Wire.endTransmission();
+Wire.requestFrom(DEVICE,sizeof(value));
+for (i = 0; i < size; i++)
+if(Wire.available())
+*p++ = Wire.read();
+return i;
+}
