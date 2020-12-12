@@ -12,7 +12,8 @@
 <meta name="MobileOptimized" content="320">
 <meta charset="UTF-8">
 <!--<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">-->
-<link href="style.css" rel="stylesheet">
+<link href="bootstrap.css" rel="stylesheet">
+<script src="bootstrap.js"></script>
 <script>
   var settings;
   function send(params, data, callback) {
@@ -33,9 +34,9 @@
     req.send(JSON.stringify(data));
   }
 
-  function $(val) {
-    return document.getElementById(val);
-  }
+  // function $(val) {
+  //   return document.getElementById(val);
+  // }
 
   function reboot() {
     send("reboot", {}, function (res) { });
@@ -44,16 +45,17 @@
 
   function loadSettings() {
     send("settings", {}, function (res) {
-      $('loader').classList.add('hide');
+      // $('loader').classList.add('hide');
       if (res) {
         for (key in res) {
-          var obj = $(key);
+          var obj = $("#" + key);
+          console.log(obj)
           if (obj) {
             console.log(obj.tagName)
             if (obj.tagName == "SPAN") {
-              obj.innerHTML = res[key]
+              // obj.innerHTML = res[key]
             } else {
-              obj.value = res[key]
+              obj.value(res[key]);
             }
           }
         }

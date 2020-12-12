@@ -8,7 +8,11 @@
     "example": "example"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "gulp build",
+    "watch": "gulp watch",
+    "css-build": "node-sass --omit-source-map-url sass/style.scss src/assets/css/style.css",
+    "css-watch": "npm run css-build -- --watch",
+    "start": "npm run css-watch"
   },
   "repository": {
     "type": "git",
@@ -20,15 +24,16 @@
   ],
   "dependencies": {
     "gulp": "^4.0.0",
-    "gulp-watch": "^4.1.1",
-    "gulp-util": "^3.0.8",
-    "gulp-uglify": "^3.0.1",
     "gulp-cssmin": "^0.2.0",
-    "gulp-rename": "^1.4.0",
     "gulp-gzip": "^1.4.2",
-    "gulp-replace": "1.0.0",
     "gulp-htmlmin": "5.0.1",
-    "gulp-rigger": "^0.5.8"
+    "gulp-rename": "^1.4.0",
+    "gulp-replace": "1.0.0",
+    "gulp-rigger": "^0.5.8",
+    "gulp-uglify": "^3.0.1",
+    "gulp-util": "^3.0.8",
+    "gulp-watch": "^4.1.1",
+    "node-sass": "^5.0.0"
   },
   "author": "bondrogeen",
   "license": "MIT",

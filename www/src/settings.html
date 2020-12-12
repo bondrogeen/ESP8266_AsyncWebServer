@@ -12,146 +12,116 @@
 
 <body>
   //= template/header.html
-  <div class="cont">
+  <div class="container">
     <div class="row">
-      <div class="s12 m2 l2">
+      <div class="col-sm-12 col-md-2 col-lg-2">
       </div>
-      <div class="s12 m10 l9">
+      <div class="col-sm-12 col-md-10 l9 mt-5 mb-5">
         <h2>Settings</h2>
         <div class="row">
-          <div class="s12 m6 l6">
-            <h3>Wi-Fi :</h3>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group">
-                  <select id="wifi_mode" class="value">
-                    <option value="0" disabled>Disable</option>
-                    <option value="1" disabled>Station</option>
-                    <option value="2" disabled>Access point</option>
-                    <option value="3">STA and AP</option>
-                  </select>
-                  <span>Mode :</span>
-                </div>
+          <div class="col-sm-12 col-md-6 col-lg-4">
+            <h4 class="text-primary">Wi-Fi :</h4>
+            <div class="row">
+              <label for="wifi_mode" class="form-label">Mode:</label>
+              <div class="input-group mb-3">
+                <select id="wifi_mode" class="value form-select" id="wifi_mode"
+                  aria-label="Example select with button addon">
+                  <option value="0" disabled>Disable</option>
+                  <option value="1" disabled>Station</option>
+                  <option value="2" disabled>Access point</option>
+                  <option value="3">STA and AP</option>
+                </select>
               </div>
-            </div>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group">
-                  <div class="search">
-                    <input id="wifi_ssid" name="wifi_ssid" class="value" type="text" required=" " value="">
-                    <label for="wifi_ssid">Name (SSID)</label><input id="search" type="submit" value="Scan">
-                    <ul id="list" style="display:none;">
-                    </ul>
-                  </div>
-                </div>
+              <label for="wifi_ssid" class="form-label">SSID</label>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control value" id="wifi_ssid" aria-describedby="basic-addon3">
               </div>
-              <div class="s12 m10">
-                <div class="group"><input id="wifi_pass" type="password" class="value" required="" value="">
-                  <label for="wifi_pass">Password</label>
-                </div>
+              <label for="wifi_pass" class="form-label">Password</label>
+              <div class="input-group mb-3">
+                <input type="password" class="form-control value" id="wifi_pass" aria-describedby="basic-addon3">
               </div>
             </div>
           </div>
-          <div class="s12 m6 l6">
-            <h3>Network :</h3>
+          <div class="col-sm-12 col-md-6 col-lg-4">
+            <h3 class="text-primary">Network :</h3>
             <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="net_ip" type="text" class="value" required="" value="192.168.1.10">
-                  <label for="net_ip">IP address</label>
-                </div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="dhcp">
+                <label class="form-check-label" for="dhcp">DHCP</label>
               </div>
-            </div>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="net_mask" type="text" class="value" required="" value="255.255.255.0">
-                  <label for="net_mask">Subnet mask</label>
-                </div>
+              <label for="net_ip" class="form-label">IP address</label>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control value" id="net_ip" aria-describedby="basic-addon3"
+                  value="192.168.1.12">
               </div>
-            </div>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="net_geteway" type="text" class="value" required="" value="192.168.1.1">
-                  <label for="net_geteway">Gateway</label>
-                </div>
+              <label for="net_mask" class="form-label">Subnet mask</label>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control value" id="net_mask" aria-describedby="basic-addon3"
+                  value="255.255.255.0">
+              </div>
+              <label for="net_geteway" class="form-label">Gateway</label>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control value" id="net_geteway" aria-describedby="basic-addon3"
+                  value="192.168.1.1">
               </div>
             </div>
           </div>
 
-          <div class="s12 m6 l6">
-            <h3>Authentication :</h3>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group">
-                  <select id="http_mode" class="value">
-                    <option value="1">ON</option>
-                    <option value="0">OFF</option>
-                  </select>
-                  <span>Mode :</span>
-                </div>
+          <div class="col-sm-12 col-md-6 col-lg-4">
+            <h3 class="text-primary">Authentication :</h3>
+            <div class="row">
+              <label for="http_mode" class="form-label">Mode:</label>
+              <div class="input-group mb-3">
+                <select id="http_mode" class="value form-select" aria-describedby="basic1">
+                  <option value="0" disabled>Disable</option>
+                  <option value="1" disabled>Enable</option>
+                </select>
               </div>
-            </div>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="http_login" type="text" class="value" required="" value="">
-                  <label for="http_login">Login</label>
-                </div>
+              <label for="http_login" class="form-label">Login</label>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control value" id="http_login" aria-describedby="basic-addon3">
               </div>
-            </div>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="http_pass" type="password" class="value" required="" value="">
-                  <label for="http_pass">Password</label>
-                </div>
+              <label for="http_pass" class="form-label">Password</label>
+              <div class="input-group mb-3">
+                <input type="password" class="form-control value" id="http_pass" aria-describedby="basic-addon3">
               </div>
             </div>
           </div>
-          <div class="s12 m6 l6">
-            <h3>Server :</h3>
+          <div class="col-sm-12 col-md-6 col-lg-4">
+            <h3 class="text-primary">Server :</h3>
             <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="server_url" type="text" class="value" required="" value="">
-                  <label for="server_url">Server url</label>
-                </div>
+              <label for="server_url" class="form-label">Server url</label>
+              <div class="input-group mb-3">
+                <span class="input-group-text" id="basic-addon3">http://</span>
+                <input type="text" class="form-control value" id="server_url" aria-describedby="basic-addon3">
               </div>
-            </div>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="server_port" type="number" class="value" required="" value="">
-                  <label for="server_port">Port</label>
-                </div>
+              <label for="server_port" class="form-label">Port</label>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control value" id="server_port" aria-describedby="basic-addon3">
               </div>
-            </div>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="device_location" type="text" class="value" required="" value="">
-                  <label for="device_location">Location name</label>
-                </div>
+              <label for="device_location" class="form-label">Location name</label>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control value" id="device_location" aria-describedby="basic-addon3">
               </div>
             </div>
           </div>
-          <div class="s12 m6 l6">
-            <h3>Device :</h3>
+          <div class="col-sm-12 col-md-6 col-lg-4">
+            <h3 class="text-primary">Device :</h3>
             <div class="row center">
-              <div class="s12 m10">
-                <div class="group">
-                  <input id="device_time" type="datetime-local" value="2020-12-31T08:30"
-                    pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}" required>
-                  <label for="device_time">Time and data</label>
-                </div>
+              <label for="device_time" class="form-label">Time and data</label>
+              <div class="input-group mb-3">
+                <input id="device_time" class="form-control value" type="datetime-local" value="2020-12-31T08:30"
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}" required>
               </div>
-            </div>
-            <div class="row center">
-              <div class="s12 m10">
-                <div class="group"><input id="device_id" type="text" required="" value="" disabled>
-                  <label for="device_id" style="top: -20px;font-size: 14px;">Device ID</label>
-                </div>
+              <label for="device_id" class="form-label">Device ID</label>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control value" id="device_id" aria-describedby="basic-addon3">
               </div>
+
             </div>
           </div>
-        </div>
-        <div class="row end">
-          <div class="s12 m10">
-            <div class="group"><button class="info" id="btn_save">Save</button></div>
+          <div class="col-12">
+            <button class="btn btn-primary" type="submit">Save</button>
           </div>
         </div>
       </div>
@@ -162,7 +132,7 @@
   <script>
     function load() {
       // alert("is work")
-      $("settings").classList.add("active")
+
     }
 
     function scan() {
@@ -171,7 +141,8 @@
         if (res && res.length > 0) {
           var buf = '';
           res.forEach(function (item, i, res) {
-            buf += '<li id="' + item.ssid + '"><b>' + item.ssid + '</b> rssi : ' + item.rssi + ' channel : ' + item.channel + '</li>';
+            buf += '<li id="' + item.ssid + '"><b>' + item.ssid + '</b> rssi : ' + item.rssi + ' channel : ' +
+              item.channel + '</li>';
           });
           $('list').innerHTML = buf;
         } else {
@@ -232,7 +203,6 @@
         $('list').style.display = 'none';
       }
     }
-
   </script>
 </body>
 

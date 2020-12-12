@@ -1,24 +1,33 @@
-  <div id="loader" class="loader"></div>
-  <ul class="nav fix info" id="navbar">
-    <li><a id="index" href="index.html" class="brand">Main</a></li>
-    <li><a id="settings" href="settings.html">Settings</a></li>
-    <li><a id="service" href="service.html">Service</a></li>
-    <li class="-exit"><a href="#" id="btn_exit">Exit</a></li>
-    <li class="-icon"><a href="#" onclick="document.getElementById('navbar').classList.toggle('res');">&equiv;</a></li>
-  </ul>
-
-  <div id="modal" class="modal hide">
-    <div class="m-cont">
-      <div class="m-head">
-        <span class="close" id="m_close">&times;</span>
-        <span class="m-info">Attention!</span>
-      </div>
-      <div class="m-body">
-        <p id="m_text">Save the settings and reload the module?</p>
-      </div>
-      <div class="m-foo">
-        <button id="m_yes" class="info">Yes</button>&nbsp;
-        <button id="m_no">No</button>
-      </div>
+<nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Navbar</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="/">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="settings.html">Settings</a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Service
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+            <li><a class="dropdown-item" href="service.html">Update</a></li>
+            <li><a class="dropdown-item" href="upload">Upload</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="heap">Heap</a></li>
+          </ul>
+        </li>
+      </ul>
+      <form class="d-flex">
+        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
+        <button class="btn btn-outline-success" type="submit">Search</button>
+      </form>
     </div>
   </div>
+</nav>

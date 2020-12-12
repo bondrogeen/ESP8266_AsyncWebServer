@@ -25,8 +25,8 @@
 #define INDEX_START_ADRESS 0
 
 #define DEF_WIFI_MODE WIFI_AP_STA
-#define DEF_WIFI_SSID "sfinks_72"
-#define DEF_WIFI_PASS "ub,bcrec"
+#define DEF_WIFI_SSID "Net_1"
+#define DEF_WIFI_PASS "Sotex110605"
 #define DEF_SERVER_URL "192.168.1.37"
 #define DEF_SERVER_PORT 3000
 #define DEF_HTTP_MODE 1
@@ -40,6 +40,7 @@ Rdm6300 rdm6300;
 WiFiClient WiFIclient;
 RTC_DS3231 rtc;
 
+uint32_t now;
 uint32_t espID; 
 
 AsyncWebServer server(80);
@@ -54,10 +55,9 @@ uint8_t reset_counter = 1;
 uint16_t start_adress = 0;
 uint32_t last_time = 0;
 char device_firmware[6] = "0.0.6";
-bool isWsConnected = false;
-bool isLoad = false;
-bool isErase = false;
-bool shouldReboot = false;
+uint8_t isWsConnected = false;
+uint8_t erase_start = false;
+uint8_t shouldReboot = false;
 
 struct Data {
   uint32_t card;
@@ -150,7 +150,6 @@ void eraseEeprom() {
     delay(DEF_EEPROM_WRITE_TIME);
   }
   writeIntIntoEEPROM(INDEX_START_ADRESS, 0);
-  isErase = false;
 }
 
 void printCard(Data str) {
@@ -167,17 +166,49 @@ void printCard(Data str) {
   Serial1.println();
 }
 
-void load() {
-  uint8_t j = 32;
-  uint8_t buffer[32];
-  uint16 adress = 0;
-  for (size_t i = 0; i < (DEF_EEPROM_SIZE / j); i++) {
-    eeRead(adress, buffer);
-    adress += j;
-    ws.binaryAll(buffer, sizeof(buffer));
-    delay(50);
+
+#define DEF_LOAD_BUFFER_SIZE 128
+uint32_t load_last_time = now;
+uint16 load_adress = 0;
+uint8_t load_start = false;
+uint8_t load_first_start = true;
+uint8_t load_buffer[DEF_LOAD_BUFFER_SIZE];
+
+void load(uint8_t client_id) {
+  if (load_first_start) {
+    load_last_time = now;
+    load_adress = 0;
+    load_first_start = false;
+    Serial1.println("load_first_start");
   }
-  isLoad = false;
+  if (now - load_last_time > 200) {
+    load_last_time = now;
+    eeRead(load_adress, load_buffer);
+    load_adress += DEF_LOAD_BUFFER_SIZE;
+    ws.binary(client_id, load_buffer, sizeof(load_buffer));
+    for (size_t i = 0; i < sizeof(load_buffer); i++) {
+      Serial1.print(load_buffer[i]);
+    }
+    
+    Serial1.println();
+    Serial1.print("load_adress : ");
+    Serial1.println(load_adress);
+  }
+  if(load_adress >= DEF_EEPROM_SIZE){
+    load_start = false;
+    load_first_start = true;
+    Serial1.println("load_start");
+  }
+  // uint8_t j = 64;
+  // uint8_t buffer[64];
+  // uint16 adress = 0;
+  // for (size_t i = 0; i < (DEF_EEPROM_SIZE / j); i++) {
+  //   eeRead(adress, buffer);
+  //   adress += j;
+  //   ws.binary(client_id, buffer, sizeof(buffer));
+  //   delay(100);
+  // }
+  // isLoad = false;
 }
 
 // void findStruct(uint16_t byte) {
@@ -232,7 +263,7 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
     client->printf("Hello Client %u :)", client->id());
     client->ping();
     isWsConnected = true;
-    isLoad = true;    
+    // isLoad = true;    
   } else if(type == WS_EVT_DISCONNECT){
     Serial1.printf("ws[%s][%u] disconnect\n", server->url(), client->id());
     isWsConnected = false;
@@ -251,6 +282,9 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
         for(size_t i=0; i < info->len; i++) {
           msg += (char) data[i];
         }
+        if(!strcmp(msg.c_str(), "load")) load_start = client->id();
+        if(!strcmp(msg.c_str(), "erase")) erase_start = client->id();
+
       } else {
         char buff[3];
         for(size_t i=0; i < info->len; i++) {
@@ -471,6 +505,7 @@ void setup() {
 
   server.serveStatic("/", SPIFFS, "/")
     .setDefaultFile("index.html")
+    // .setCacheControl("max-age=600")
     .setAuthentication(DEF_HTTP_LOGIN, DEF_HTTP_PASS);
 
   // server.serveStatic("/", SPIFFS, "/www/").setDefaultFile("default.html");
@@ -548,9 +583,8 @@ void setup() {
   });
 
   server.on("/erase", HTTP_ANY, [](AsyncWebServerRequest *request){
-    isErase = true;
+    erase_start = 1;
     request->send(200, "application/json", "{\"state\":true}");
-    shouldReboot = true;
   });
 
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -691,7 +725,7 @@ void loop(){
     ESP.restart();
   }
 
-  uint32_t now = millis();
+  now = millis();
 
   if (rdm6300.update() && reset_counter) {
     last_time = now;
@@ -725,8 +759,13 @@ void loop(){
     // findStruct(10);
     printCard(*card);
   }
-  if(isLoad) load();
-  if(isErase) eraseEeprom();
+  if(load_start) load(load_start);
+  if(erase_start) {
+    eraseEeprom();
+    if(isWsConnected)ws.text(erase_start, "end");
+    start_adress = 0;
+    erase_start = 0;
+  }
 
   if (now - last_time > 5000) {
     digitalWrite(READ_LED_PIN, LOW);
