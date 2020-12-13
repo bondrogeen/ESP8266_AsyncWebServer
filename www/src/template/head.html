@@ -13,6 +13,7 @@
 <meta charset="UTF-8">
 <!--<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">-->
 <link href="bootstrap.css" rel="stylesheet">
+<script src="jquery.js"></script>
 <script src="bootstrap.js"></script>
 <script>
   var settings;
@@ -34,9 +35,9 @@
     req.send(JSON.stringify(data));
   }
 
-  // function $(val) {
-  //   return document.getElementById(val);
-  // }
+  function $(val) {
+    return document.getElementById(val);
+  }
 
   function reboot() {
     send("reboot", {}, function (res) { });
@@ -44,11 +45,25 @@
   }
 
   function loadSettings() {
-    send("settings", {}, function (res) {
+    // send("settings", {}, function (res) {
       // $('loader').classList.add('hide');
+    var data = {
+      "server_url":"192.168.1.37",
+      "server_port":3000,
+      "http_mode":1,
+      "http_login":"admin",
+      "http_pass":"admin",
+      "wifi_mode":3,
+      "wifi_ssid":"sfinks_72",
+      "wifi_pass":"ub,bcrec",
+      "device_location":"brig6",
+      "device_id":542265,
+      "device_firmware":"0.0.6"
+    }
+        res = data;
       if (res) {
         for (key in res) {
-          var obj = $("#" + key);
+          var obj = $(key);
           console.log(obj)
           if (obj) {
             console.log(obj.tagName)
@@ -61,7 +76,7 @@
         }
         settings = res;
       }
-    });
+    // });
   }
 
   function logout() {
