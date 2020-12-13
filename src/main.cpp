@@ -197,7 +197,8 @@ void load(uint8_t client_id) {
   if(load_adress >= DEF_EEPROM_SIZE){
     load_start = false;
     load_first_start = true;
-    Serial1.println("load_start");
+    ws.text(client_id, "stop");
+    Serial1.println("load_stop");
   }
   // uint8_t j = 64;
   // uint8_t buffer[64];

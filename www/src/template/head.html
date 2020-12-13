@@ -13,7 +13,7 @@
 <meta charset="UTF-8">
 <!--<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">-->
 <link href="bootstrap.css" rel="stylesheet">
-<script src="jquery.js"></script>
+<!-- <script src="jquery.js"></script> -->
 <script src="bootstrap.js"></script>
 <script>
   var settings;
@@ -64,13 +64,14 @@
       if (res) {
         for (key in res) {
           var obj = $(key);
-          console.log(obj)
+          // console.log(obj)
           if (obj) {
-            console.log(obj.tagName)
-            if (obj.tagName == "SPAN") {
+            // console.log(obj.tagName)
+            if (obj.tagName && obj.tagName == "SPAN") {
               // obj.innerHTML = res[key]
             } else {
-              obj.value(res[key]);
+              obj.value = res[key];
+              // console.log(res[key])
             }
           }
         }

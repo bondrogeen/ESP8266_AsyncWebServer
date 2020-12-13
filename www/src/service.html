@@ -13,77 +13,87 @@
 
   //= template/header.html
 
-  <div id="cont" class="cont">
+  <div class="container">
     <div class="row">
-      <div class="s12 of-m2 m10 of-l2 l8">
+      <div class="col-sm-12 col-md-2 col-lg-2">
+      </div>
+      <div class="col-sm-12 col-md-10 l9 mt-5 mb-5">
         <h2>Service: </h2>
-        <div class="row">
-          <div class="s12 m10">
-            <div class="group">
-              <span>File firmware</span>
-              <input id="update" type="file" name='update' accept=".bin" />
+        <div class="row mt-5">
+          <div class="col-sm-12 col-md-6">
+            <h4 class="text-primary">Uploading files :</h4>
+            <div class="row">
+              <div class="input-group">
+                <input type="file" class="form-control" id="upload" aria-describedby="btn_flash" aria-label="Upload">
+                <button class="btn btn-outline-secondary" type="button" id="btn_upload">Upload</button>
+              </div>
             </div>
           </div>
         </div>
-        <div class="row right">
-          <div class="s12 m10">
-            <div class="group"><button class="info" id="btn_update">Update</button></div>
+        <div class="row mt-5">
+          <div class="col-sm-12 col-md-6">
+            <h4 class="text-primary">Firmware update :</h4>
+            <div class="row">
+              <div class="input-group">
+                <input type="file" class="form-control" id="update" aria-describedby="btn_flash" aria-label="Upload">
+                <button class="btn btn-outline-secondary" type="button" id="btn_flash">Update</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-  //= template/footer.html
-  <script>
+    //= template/footer.html
+    <script>
 
-    function sendFile() {
-      $("modal").classList.add("hide")
-      $("loader").classList.remove("hide")
-      var photo = $("update").files[0];
-      var req = new XMLHttpRequest();
-      var formData = new FormData();
-      formData.append("update", photo);
-      req.open("POST", '/update');
-      req.addEventListener("load", function () {
-      if (req.status === 200) {        
-        $("loader").classList.add("hide")
-        alert("Update:" + req.response);        
+      function sendFile() {
+        $("modal").classList.add("hide")
+        $("loader").classList.remove("hide")
+        var photo = $("update").files[0];
+        var req = new XMLHttpRequest();
+        var formData = new FormData();
+        formData.append("update", photo);
+        req.open("POST", '/update');
+        req.addEventListener("load", function () {
+          if (req.status === 200) {
+            $("loader").classList.add("hide")
+            alert("Update:" + req.response);
+          }
+        });
+        req.send(formData);
       }
-    });
-      req.send(formData);
-    }
 
-    function load() {
-      $("service").classList.add("active")
+      function load() {
+        // $("service").classList.add("active")
 
-      $("update").addEventListener("change", function handleFiles() {
-        const fileList = this.files;
-        console.log(fileList)
-      }, false);
+        // $("update").addEventListener("change", function handleFiles() {
+        //   const fileList = this.files;
+        //   console.log(fileList)
+        // }, false);
 
-    }
+      }
 
-    function click(event) {
-      var id = event.target.id;
-      if (id === "btn_update") {
-        var file = $("update").files[0];
-        if (file) {
-          $("m_text").innerHTML = "Update module?"
-          $("modal").classList.remove("hide")
-        } else {
-          $("update").click()
+      function click(event) {
+        var id = event.target.id;
+        if (id === "btn_update") {
+          var file = $("update").files[0];
+          if (file) {
+            $("m_text").innerHTML = "Update module?"
+            $("modal").classList.remove("hide")
+          } else {
+            $("update").click()
+          }
         }
+        if (id === "m_yes") {
+          sendFile();
+
+        }
+
+
       }
-      if (id === "m_yes") {
-        sendFile();
-
-      }
 
 
-    }
-
-
-  </script>
+    </script>
 </body>
 
 </html>
