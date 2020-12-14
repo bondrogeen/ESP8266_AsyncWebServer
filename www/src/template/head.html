@@ -45,22 +45,21 @@
   }
 
   function loadSettings() {
-    // send("settings", {}, function (res) {
-      // $('loader').classList.add('hide');
-    var data = {
-      "server_url":"192.168.1.37",
-      "server_port":3000,
-      "http_mode":1,
-      "http_login":"admin",
-      "http_pass":"admin",
-      "wifi_mode":3,
-      "wifi_ssid":"sfinks_72",
-      "wifi_pass":"ub,bcrec",
-      "device_location":"brig6",
-      "device_id":542265,
-      "device_firmware":"0.0.6"
-    }
-        res = data;
+    send("settings", {}, function (res) {
+    // var data = {
+    //   "server_url":"192.168.1.37",
+    //   "server_port":3000,
+    //   "http_mode":1,
+    //   "http_login":"admin",
+    //   "http_pass":"admin",
+    //   "wifi_mode":3,
+    //   "wifi_ssid":"sfinks_72",
+    //   "wifi_pass":"ub,bcrec",
+    //   "device_location":"brig6",
+    //   "device_id":542265,
+    //   "device_firmware":"0.0.6"
+    // }
+        // res = data;
       if (res) {
         for (key in res) {
           var obj = $(key);
@@ -77,7 +76,7 @@
         }
         settings = res;
       }
-    // });
+    });
   }
 
   function logout() {
@@ -95,7 +94,7 @@
       console.log(id)
       if (id === "search") scan();
       if (id === "btn_exit") logout();
-      if (id === "m_no" || id === "m_close") $('modal').classList.add("hide");
+      // if (id === "m_no" || id === "m_close") $('modal').classList.add("hide");
     });
   };
 </script>

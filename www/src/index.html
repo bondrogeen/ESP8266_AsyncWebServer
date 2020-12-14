@@ -46,8 +46,14 @@
           <div class="col-12">
             <div class="card">
               <div class="card-body text-white bg-secondary">
-                <h5 class="card-title">Card</h5>
-                <!-- <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p> -->
+                <div class="row">
+                  <div class="col-6">
+                    <h5 class="card-title">Card </h5>
+                  </div>
+                  <div class="col-6 text-end">
+                    <span id="span_ws_state" class="badge rounded-pill bg-danger ms-3">Disconnected</span>
+                  </div>
+                </div>
               </div>
               <ul class="list-group list-group-flush">
                 <li class="list-group-item">
@@ -75,9 +81,6 @@
                   <span id="card_checksum"></span>
                 </li>
               </ul>
-              <div class="card-body">
-                <a href="#" class="card-link">Card link</a>
-              </div>
             </div>
           </div>
         </div>
@@ -90,12 +93,13 @@
               <button id="btn_erase" type="button" class="btn btn-outline-danger">Erase</button>
               <button id="btn_export" type="button" class="btn btn-outline-secondary">Export</button>
               <button id="btn_test" type="button" class="btn btn-outline-primary">Test</button>
-
             </div>
+
           </div>
           <div id="loading" class="text-center col-sm-12 col-md-10 col-lg-9 invisible">
             <div class="progress">
-              <div id="progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+              <div id="progress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                style="width: 0%"></div>
             </div>
           </div>
           <div class="col-sm-12 col-md-10 col-lg-9" style="overflow: auto; height: 400px;">
@@ -241,9 +245,15 @@
 
       ws.onopen = function (e) {
         console.log("Connected");
+        $("span_ws_state").innerHTML = "Connected";
+        $("span_ws_state").classList.remove("bg-danger");
+        $("span_ws_state").classList.add("bg-success");
       };
       ws.onclose = function (e) {
         console.log("Disconnected");
+        $("span_ws_state").innerHTML = "Disonnected";
+        $("span_ws_state").classList.add("bg-danger");
+        $("span_ws_state").classList.remove("bg-success");
       };
       ws.onerror = function (e) {
         console.log("ws error", e);
@@ -275,7 +285,7 @@
           }
           $("progress").style.width = progress_width + "%";
           progress_width += 4
-          if(progress_width >100) progress_width == 100
+          if (progress_width > 100) progress_width == 100
 
         } else {
           msg = "TXT:" + e.data;
